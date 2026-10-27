@@ -119,6 +119,7 @@ function App() {
         onLogout={() => {
           api.setCurrentUser(null);
           setUser(null);
+          setActiveTab('overview');
         }}
       />
 
@@ -335,6 +336,7 @@ function App() {
 
         {activeTab === 'request-aid' && (
           <AidRequestForm
+            user={user}
             onRequestSubmitted={handleRequestSubmitted}
             onNavigateToTracker={() => setActiveTab('tracker')}
           />
@@ -355,6 +357,7 @@ function App() {
             onUpdateStatus={handleUpdateStatus}
             onAddRating={handleAddRating}
             onOpenReviewModal={handleOpenReviewModal}
+            onNavigateToPostRequest={() => setActiveTab('request-aid')}
           />
         )}
 
@@ -481,6 +484,8 @@ function App() {
           setUser(loggedUser);
           if (loggedUser.role === 'ngo') {
             setActiveTab('ngo-portal');
+          } else {
+            setActiveTab('tracker');
           }
         }}
       />

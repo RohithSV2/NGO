@@ -1,22 +1,150 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const STATUS_OPTIONS = ['All', 'Matched', 'In Progress', 'Resolved', 'Pending'];
 
-export default function RequestTracker({ requests, ratings = [], onUpdateStatus, onAddRating, user }) {
+export default function RequestTracker({
+  requests = [],
+  ratings = [],
+  onUpdateStatus,
+  onAddRating,
+  user,
+  onNavigateToPostRequest
+}) {
+  const isNGO = user?.role === 'ngo';
+  const isCitizen = user?.role === 'citizen' || (!isNGO && !!user);
+
+  // Filter requests belonging to this citizen (a user can have many requests)
+  const myRequests = useMemo(() => {
+    if (!user) return [];
+    const nameLower = (user.name || '').toLowerCase().trim();
+    const emailLower = (user.email || '').toLowerCase().trim();
+    return requests.filter(r => {
+      const reqName = (r.requesterName || '').toLowerCase().trim();
+      const reqEmail = (r.requesterEmail || '').toLowerCase().trim();
+      return (nameLower && reqName === nameLower) || (emailLower && reqEmail === emailLower);
+    });
+  }, [requests, user]);
+
+  // Filter requests matched to this NGO representative
+  const ngoAssignedRequests = useMemo(() => {
+    if (!isNGO) return [];
+    const ngoNameLower = (user?.ngoName || 'mysuru relief').toLowerCase().trim();
+    return requests.filter(r => {
+      return Array.isArray(r.matchedNGOs) && r.matchedNGOs.some(
+        m => (m.name || '').toLowerCase().includes(ngoNameLower) || ngoNameLower.includes((m.name || '').toLowerCase())
+      );
+    });
+  }, [requests, isNGO, user]);
+
+  // Scope filter:
+  // For NGO: default to 'assigned', can toggle to 'all'
+  // For Citizen: default to 'mine' if they have requests, can toggle to 'all'
+  const [activeScope, setActiveScope] = useState(() => {
+    if (isNGO) return 'assigned';
+    if (isCitizen && myRequests.length > 0) return 'mine';
+    return 'all';
+  });
+
   const [activeStatus, setActiveStatus] = useState('All');
 
-  const filtered = requests.filter(r => {
-    if (activeStatus === 'All') return true;
-    return r.status === activeStatus;
-  });
+  // Compute scoped list
+  const scopedRequests = useMemo(() => {
+    if (isNGO && activeScope === 'assigned') {
+      return ngoAssignedRequests;
+    }
+    if (isCitizen && activeScope === 'mine') {
+      return myRequests;
+    }
+    return requests;
+  }, [requests, isNGO, isCitizen, activeScope, ngoAssignedRequests, myRequests]);
+
+  // Apply status filter
+  const filtered = useMemo(() => {
+    return scopedRequests.filter(r => {
+      if (activeStatus === 'All') return true;
+      return r.status === activeStatus;
+    });
+  }, [scopedRequests, activeStatus]);
 
   return (
     <div className="section-container">
+      {/* Role-Aware Section Header */}
       <div className="section-header-block">
-        <h2>Aid Request Tracking Board</h2>
-        <p>Monitor the status of registered aid requests, verified NGO matches, and rate resolution assistance directly on your request.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h2>
+              {isNGO ? 'Operations & Mission Tracking Board' : 'Aid Request Tracking Board'}
+            </h2>
+            <p>
+              {isNGO
+                ? `Authorized Representative View (${user?.ngoName || 'NGO'}). View, track in-field progress, and resolve humanitarian aid requests.`
+                : 'Monitor the status of your distress requests, connect with matched responders, and rate verified assistance directly.'}
+            </p>
+          </div>
+
+          {/* Action button on right */}
+          {!isNGO && onNavigateToPostRequest && (
+            <button
+              type="button"
+              className="btn-primary-green"
+              onClick={onNavigateToPostRequest}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', fontSize: '13px' }}
+            >
+              <span>+</span>
+              <span>Post Another Aid Request</span>
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Role-Aware Scope Filter Toggle */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {isNGO ? (
+          <>
+            <button
+              type="button"
+              className={`sector-tab-pill ${activeScope === 'assigned' ? 'active' : ''}`}
+              onClick={() => setActiveScope('assigned')}
+              style={{ fontWeight: '700' }}
+            >
+              🏢 Assigned to {user?.ngoName || 'My NGO'} ({ngoAssignedRequests.length})
+            </button>
+            <button
+              type="button"
+              className={`sector-tab-pill ${activeScope === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveScope('all')}
+            >
+              🌐 All Community Requests ({requests.length})
+            </button>
+          </>
+        ) : isCitizen ? (
+          <>
+            <button
+              type="button"
+              className={`sector-tab-pill ${activeScope === 'mine' ? 'active' : ''}`}
+              onClick={() => setActiveScope('mine')}
+              style={{ fontWeight: '700' }}
+            >
+              👤 My Submitted Requests ({myRequests.length})
+            </button>
+            <button
+              type="button"
+              className={`sector-tab-pill ${activeScope === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveScope('all')}
+            >
+              🌐 All Community Requests ({requests.length})
+            </button>
+          </>
+        ) : null}
+
+        {isCitizen && myRequests.length > 0 && activeScope === 'mine' && (
+          <span style={{ fontSize: '12px', color: '#166534', backgroundColor: '#f0fdf4', padding: '4px 10px', borderRadius: '12px', border: '1px solid #bbf7d0', marginLeft: 'auto' }}>
+            ✓ Showing your {myRequests.length} active request{myRequests.length === 1 ? '' : 's'} (Users can submit multiple needs)
+          </span>
+        )}
+      </div>
+
+      {/* Status Filter Tabs */}
       <div className="tracker-filter-tabs">
         {STATUS_OPTIONS.map(st => (
           <button
@@ -27,16 +155,29 @@ export default function RequestTracker({ requests, ratings = [], onUpdateStatus,
           >
             {st}
             <span className="tab-pill-count">
-              {st === 'All' ? requests.length : requests.filter(r => r.status === st).length}
+              {st === 'All' ? scopedRequests.length : scopedRequests.filter(r => r.status === st).length}
             </span>
           </button>
         ))}
       </div>
 
+      {/* Requests List */}
       <div className="tracker-list">
         {filtered.length === 0 ? (
-          <div className="empty-tracker-message">
-            <p>No aid requests currently found under the "{activeStatus}" status.</p>
+          <div className="empty-tracker-message" style={{ textAlign: 'center', padding: '36px 20px' }}>
+            <p style={{ margin: 0, fontSize: '15px', color: 'var(--text-muted)' }}>
+              No aid requests currently found under "{activeStatus}" status in this view.
+            </p>
+            {!isNGO && onNavigateToPostRequest && (
+              <button
+                type="button"
+                className="btn-outline-green"
+                onClick={onNavigateToPostRequest}
+                style={{ marginTop: '14px' }}
+              >
+                + Post a New Aid Request
+              </button>
+            )}
           </div>
         ) : (
           filtered.map(req => (
@@ -47,6 +188,7 @@ export default function RequestTracker({ requests, ratings = [], onUpdateStatus,
               onUpdateStatus={onUpdateStatus}
               onAddRating={onAddRating}
               user={user}
+              isNGO={isNGO}
             />
           ))
         )}
@@ -55,17 +197,21 @@ export default function RequestTracker({ requests, ratings = [], onUpdateStatus,
   );
 }
 
-function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
+function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, isNGO }) {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [selectedNgo, setSelectedNgo] = useState(() => (req.matchedNGOs && req.matchedNGOs.length > 0 ? req.matchedNGOs[0] : null));
   const [score, setScore] = useState(5);
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [resolutionInput, setResolutionInput] = useState('');
+  const [showResolveInput, setShowResolveInput] = useState(false);
 
   // Check if this request has already been rated
   const existingReview = ratings.find(
     r => r.aidRequestId === req._id || (r.aidRequestId && String(r.aidRequestId) === String(req._id))
   );
+
+  const cleanPhone = (req.requesterPhone || '').replace(/\D/g, '');
 
   const getUrgencyClass = (urgency) => {
     switch ((urgency || '').toLowerCase()) {
@@ -88,6 +234,17 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
   const handleResolveAndOpenReview = () => {
     onUpdateStatus(req._id, 'Resolved');
     setIsReviewOpen(true);
+  };
+
+  const handleNgoAccept = () => {
+    const note = `Accepted by ${user?.ngoName || 'Responding NGO'}. Relief dispatched.`;
+    onUpdateStatus(req._id, 'In Progress', note);
+  };
+
+  const handleNgoConfirmResolve = () => {
+    const note = resolutionInput.trim() || `Relief completed and verified by ${user?.ngoName || 'Responding NGO'}.`;
+    onUpdateStatus(req._id, 'Resolved', note);
+    setShowResolveInput(false);
   };
 
   const handleSubmitInlineReview = async () => {
@@ -130,33 +287,63 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
           </span>
         </div>
 
+        {/* Role-Specific Actions */}
         <div className="tracker-action-buttons">
-          {req.status === 'Matched' && (
-            <button
-              type="button"
-              className="btn-action-status btn-status-start"
-              onClick={() => onUpdateStatus(req._id, 'In Progress')}
-            >
-              Start Operation
-            </button>
-          )}
-          {req.status === 'In Progress' && (
-            <button
-              type="button"
-              className="btn-action-status btn-status-resolve"
-              onClick={handleResolveAndOpenReview}
-            >
-              Mark Resolved
-            </button>
-          )}
-          {req.status === 'Resolved' && !existingReview && (
-            <button
-              type="button"
-              className="btn-action-status btn-status-review"
-              onClick={() => setIsReviewOpen(!isReviewOpen)}
-            >
-              {isReviewOpen ? 'Close Rating' : '★ Rate & Review'}
-            </button>
+          {isNGO ? (
+            /* Representative: View, Track, and Resolve Actions */
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {(req.status === 'Matched' || req.status === 'Pending') && (
+                <button
+                  type="button"
+                  className="btn-action-status btn-status-start"
+                  onClick={handleNgoAccept}
+                  title="Accept request and dispatch field relief"
+                >
+                  🚚 Accept & Dispatch
+                </button>
+              )}
+              {req.status === 'In Progress' && (
+                <button
+                  type="button"
+                  className="btn-action-status btn-status-resolve"
+                  onClick={() => setShowResolveInput(!showResolveInput)}
+                  title="Mark relief delivered and mission resolved"
+                >
+                  ✅ Resolve Mission
+                </button>
+              )}
+            </div>
+          ) : (
+            /* Citizen / User: Track and Rate Actions */
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {req.status === 'Matched' && (
+                <button
+                  type="button"
+                  className="btn-action-status btn-status-start"
+                  onClick={() => onUpdateStatus(req._id, 'In Progress')}
+                >
+                  Start Operation
+                </button>
+              )}
+              {req.status === 'In Progress' && (
+                <button
+                  type="button"
+                  className="btn-action-status btn-status-resolve"
+                  onClick={handleResolveAndOpenReview}
+                >
+                  Mark Resolved
+                </button>
+              )}
+              {req.status === 'Resolved' && !existingReview && (
+                <button
+                  type="button"
+                  className="btn-action-status btn-status-review"
+                  onClick={() => setIsReviewOpen(!isReviewOpen)}
+                >
+                  {isReviewOpen ? 'Close Rating' : '★ Rate & Review'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -164,6 +351,7 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
       <h3 className="tracker-req-title">{req.title}</h3>
       <p className="tracker-req-desc">{req.description}</p>
 
+      {/* Resolution Notes Banner */}
       {req.resolutionNotes && (
         <div
           className="tracker-resolution-banner"
@@ -186,12 +374,90 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
         </div>
       )}
 
-      <div className="tracker-meta-details-bar">
+      {/* Requester Contact Details & Direct Connect Hub */}
+      <div className="tracker-meta-details-bar" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px' }}>
         <span><strong>Location:</strong> {req.city}{req.state ? `, ${req.state}` : ''}</span>
-        <span><strong>Contact:</strong> {req.requesterName}</span>
-        <span><strong>Phone:</strong> <a href={`tel:${req.requesterPhone}`}>{req.requesterPhone}</a></span>
+        <span><strong>Requester:</strong> {req.requesterName}</span>
+        <span>
+          <strong>Phone:</strong>{' '}
+          <a href={`tel:${cleanPhone}`} style={{ color: '#166534', fontWeight: '700', textDecoration: 'none' }}>
+            📞 {req.requesterPhone}
+          </a>
+        </span>
+
+        {/* Representative Direct Connect Shortcuts */}
+        {isNGO && cleanPhone && (
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+            <a
+              href={`tel:${cleanPhone}`}
+              style={{
+                fontSize: '11px',
+                fontWeight: '700',
+                backgroundColor: '#16a34a',
+                color: '#ffffff',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                textDecoration: 'none'
+              }}
+            >
+              📞 Call
+            </a>
+            <a
+              href={`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`Hello ${req.requesterName}, this is ${user?.ngoName || 'NGO Responder'} regarding your distress request "${req.title}".`)}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                fontSize: '11px',
+                fontWeight: '700',
+                backgroundColor: '#25d366',
+                color: '#ffffff',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                textDecoration: 'none'
+              }}
+            >
+              💬 WhatsApp
+            </a>
+          </div>
+        )}
       </div>
 
+      {/* NGO Representative Inline Resolve Form */}
+      {isNGO && showResolveInput && req.status === 'In Progress' && (
+        <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '6px' }}>
+            Mission Completion Notes (e.g., 50 food packets delivered, medical team provided first aid):
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              className="input-control"
+              placeholder="Enter resolution details..."
+              value={resolutionInput}
+              onChange={e => setResolutionInput(e.target.value)}
+              style={{ fontSize: '13px' }}
+            />
+            <button
+              type="button"
+              className="btn-primary-green"
+              onClick={handleNgoConfirmResolve}
+              style={{ padding: '6px 14px', fontSize: '12px', whiteSpace: 'nowrap' }}
+            >
+              Confirm Resolved
+            </button>
+            <button
+              type="button"
+              className="btn-card-secondary"
+              onClick={() => setShowResolveInput(false)}
+              style={{ padding: '6px 10px', fontSize: '12px' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Matched NGOs Section */}
       {req.matchedNGOs && req.matchedNGOs.length > 0 && (
         <div className="tracker-matched-section">
           <span className="matched-label">Matched NGOs:</span>
@@ -223,7 +489,7 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
         </div>
       )}
 
-      {/* 1. Directly Display Verified Review if already submitted */}
+      {/* Verified Citizen Review Display */}
       {existingReview && (
         <div
           className="tracker-inline-review-display"
@@ -256,7 +522,7 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
         </div>
       )}
 
-      {/* 2. Direct Inline Rating Form (No detached popups or separate tabs needed) */}
+      {/* Citizen Direct Inline Rating Form */}
       {isReviewOpen && !existingReview && (
         <div
           className="tracker-inline-review-card"

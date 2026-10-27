@@ -22,16 +22,16 @@ const URGENCIES = [
   { level: 'Critical', label: 'Critical', badgeClass: 'urgency-critical' }
 ];
 
-export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker }) {
+export default function AidRequestForm({ user, onRequestSubmitted, onNavigateToTracker }) {
   const [formData, setFormData] = useState({
     title: '',
     category: 'Hunger & Food Relief',
     urgency: 'Medium',
     city: '',
     state: '',
-    requesterName: '',
-    requesterPhone: '',
-    requesterEmail: '',
+    requesterName: user?.name || '',
+    requesterPhone: user?.phone || '',
+    requesterEmail: user?.email || '',
     description: ''
   });
 
@@ -118,14 +118,14 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
                   urgency: 'Medium',
                   city: '',
                   state: '',
-                  requesterName: '',
-                  requesterPhone: '',
-                  requesterEmail: '',
+                  requesterName: user?.name || '',
+                  requesterPhone: user?.phone || '',
+                  requesterEmail: user?.email || '',
                   description: ''
                 });
               }}
             >
-              Submit Another Request
+              + Submit Another Request
             </button>
           </div>
         </div>

@@ -3,23 +3,42 @@ import React from 'react';
 export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLogout }) {
   const isNGO = user?.role === 'ngo';
 
-  const navItems = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'request-aid', label: 'Post Aid Request' },
-    { id: 'directory', label: 'NGO Directory' },
-    { id: 'tracker', label: 'Track Requests' },
-    { id: 'ngo-portal', label: isNGO ? '🏢 NGO Response Hub' : 'NGO Portal' },
-    { id: 'reviews', label: 'Reviews & Ratings' }
-  ];
+  // Role-specific navigation items:
+  // Representative: Response Hub (View, Connect, Resolve), Track Operations, Directory, Reviews
+  // Citizen / User: Overview, Post Aid Request (can have many), Track My Requests, Directory, Reviews
+  const navItems = isNGO
+    ? [
+        { id: 'ngo-portal', label: '🏢 NGO Response Hub' },
+        { id: 'tracker', label: '📋 Track Operations' },
+        { id: 'directory', label: 'NGO Directory' },
+        { id: 'reviews', label: 'Reviews & Ratings' }
+      ]
+    : [
+        { id: 'overview', label: 'Overview' },
+        { id: 'request-aid', label: 'Post Aid Request' },
+        { id: 'tracker', label: user ? 'Track My Requests' : 'Track Requests' },
+        { id: 'directory', label: 'NGO Directory' },
+        { id: 'reviews', label: 'Reviews & Ratings' }
+      ];
+
+  const handleBrandClick = () => {
+    if (isNGO) {
+      setActiveTab('ngo-portal');
+    } else {
+      setActiveTab('overview');
+    }
+  };
 
   return (
     <header className="navbar-root">
       <div className="navbar-inner">
-        <div className="navbar-brand" onClick={() => setActiveTab('overview')} role="button" tabIndex={0}>
+        <div className="navbar-brand" onClick={handleBrandClick} role="button" tabIndex={0}>
           <div className="brand-badge-icon">🌿</div>
           <div className="brand-info">
             <span className="brand-title">AidConnect</span>
-            <span className="brand-tagline">NGO Humanitarian Network</span>
+            <span className="brand-tagline">
+              {isNGO ? 'NGO Operations Network' : 'Humanitarian Aid Platform'}
+            </span>
           </div>
         </div>
 
@@ -48,7 +67,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '6px 12px',
+                    padding: '6px 14px',
                     backgroundColor: '#16a34a',
                     border: '1px solid #15803d',
                     borderRadius: '20px',
@@ -56,29 +75,30 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
                     fontSize: '13px',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 6px rgba(22, 101, 52, 0.2)'
                   }}
                 >
                   <span>🏢</span>
-                  <span>NGO Hub</span>
+                  <span>Operations Hub</span>
                 </button>
               ) : (
                 <button
                   type="button"
                   className="btn-quick-tracker"
                   onClick={() => setActiveTab('tracker')}
-                  title="Directly view Aid Request Tracking Board"
+                  title="Directly view your Aid Request Tracking Board"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '6px 12px',
+                    padding: '6px 14px',
                     backgroundColor: '#f0fdf4',
                     border: '1px solid #86efac',
                     borderRadius: '20px',
                     color: '#166534',
                     fontSize: '13px',
-                    fontWeight: '600',
+                    fontWeight: '700',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease'
                   }}
@@ -92,9 +112,14 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
                 <span className="user-icon">{isNGO ? '🏢' : '👤'}</span>
                 <span className="user-display-name">
                   {user.name}
-                  {isNGO && user.ngoName && (
+                  {isNGO && (
                     <span style={{ fontSize: '11px', color: '#166534', display: 'block', fontWeight: '700' }}>
-                      {user.ngoName}
+                      {user.ngoName ? `${user.ngoName} Rep` : 'NGO Representative'}
+                    </span>
+                  )}
+                  {!isNGO && (
+                    <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '600' }}>
+                      Citizen Requester
                     </span>
                   )}
                 </span>
