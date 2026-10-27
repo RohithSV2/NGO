@@ -1,11 +1,28 @@
 import React, { useState } from 'react';
 
+const VERIFIED_NGOS_LIST = [
+  'Mysuru Relief & Food Care',
+  'Akshaya Patra Foundation',
+  'Mysuru Vidya Education Trust',
+  'Goonj Disaster Relief',
+  'Red Cross Society Relief',
+  'Smile Foundation',
+  'Teach For India',
+  'Doctors For You',
+  'Helpage India',
+  'Other'
+];
+
 export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('citizen');
+  const [selectedNGO, setSelectedNGO] = useState('Mysuru Relief & Food Care');
+  const [customNGO, setCustomNGO] = useState('');
+  const [designation, setDesignation] = useState('Relief Coordinator');
+  const [orgPhone, setOrgPhone] = useState('9845123456');
 
   if (!isOpen) return null;
 
@@ -28,25 +45,99 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       return;
     }
 
+    const effectiveNGO = selectedNGO === 'Other' ? (customNGO.trim() || 'Community Relief NGO') : selectedNGO;
+
     const user = {
       id: 'usr_' + Date.now(),
       name: name.trim() || email.split('@')[0],
       email: email.trim(),
-      role
+      role: isRegister ? role : (email.includes('ngo') ? 'ngo' : 'citizen'),
+      ngoName: role === 'ngo' ? effectiveNGO : undefined,
+      designation: role === 'ngo' ? (designation || 'Relief Coordinator') : undefined,
+      phone: orgPhone || ''
     };
+
     onLoginSuccess(user);
     onClose();
   };
 
+  const handleQuickLogin = (demoRole) => {
+    if (demoRole === 'ngo') {
+      const ngoUser = {
+        id: 'usr_ngo_mysuru',
+        name: 'Suresh Kumar',
+        email: 'suresh@mysururelief.org',
+        role: 'ngo',
+        ngoName: 'Mysuru Relief & Food Care',
+        designation: 'Operations & Dispatch Lead',
+        phone: '9845123456'
+      };
+      onLoginSuccess(ngoUser);
+      onClose();
+    } else {
+      const citizenUser = {
+        id: 'usr_citizen_ramesh',
+        name: 'Ramesh Kannan',
+        email: 'ramesh.k@gmail.com',
+        role: 'citizen'
+      };
+      onLoginSuccess(citizenUser);
+      onClose();
+    }
+  };
+
   return (
     <div className="modal-backdrop-clean" onClick={onClose}>
-      <div className="auth-dialog-card" onClick={e => e.stopPropagation()}>
+      <div className="auth-dialog-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
         <button type="button" className="modal-dismiss-btn" onClick={onClose}>✕</button>
 
         <div className="auth-card-header">
           <div className="auth-leaf-icon">🌿</div>
           <h3>{isRegister ? 'Create an Account' : 'Sign in to AidConnect'}</h3>
           <p>Access your submitted requests and organization dashboards</p>
+        </div>
+
+        {/* Quick Demo Sign-in Pills */}
+        <div style={{ backgroundColor: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
+          <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>
+            ⚡ 1-Click Demo Profiles:
+          </span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('ngo')}
+              style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #86efac',
+                color: '#166534',
+                padding: '6px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textAlign: 'left'
+              }}
+            >
+              🏢 NGO Rep (Mysuru)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('citizen')}
+              style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#334155',
+                padding: '6px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textAlign: 'left'
+              }}
+            >
+              👤 Citizen Requester
+            </button>
+          </div>
         </div>
 
         <form className="auth-form-content" onSubmit={handleSubmit}>
@@ -90,19 +181,82 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
           </div>
 
           {isRegister && (
-            <div className="form-field">
-              <label>Account Type</label>
-              <select
-                className="input-control select-control"
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                required
-              >
-                <option value="citizen">Citizen / Aid Requester</option>
-                <option value="ngo">NGO Representative</option>
-                <option value="coordinator">Emergency Coordinator</option>
-              </select>
-            </div>
+            <>
+              <div className="form-field">
+                <label>Account Type</label>
+                <select
+                  className="input-control select-control"
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  required
+                >
+                  <option value="citizen">Citizen / Aid Requester</option>
+                  <option value="ngo">NGO Representative</option>
+                  <option value="coordinator">Emergency Coordinator</option>
+                </select>
+              </div>
+
+              {role === 'ngo' && (
+                <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0', marginTop: '6px', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '8px' }}>
+                    🏢 NGO Organization Details:
+                  </div>
+
+                  <div className="form-field" style={{ marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12px', color: '#166534' }}>Select Verified NGO Organization</label>
+                    <select
+                      className="input-control select-control"
+                      value={selectedNGO}
+                      onChange={e => setSelectedNGO(e.target.value)}
+                      required
+                    >
+                      {VERIFIED_NGOS_LIST.map(ngo => (
+                        <option key={ngo} value={ngo}>{ngo}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedNGO === 'Other' && (
+                    <div className="form-field" style={{ marginBottom: '8px' }}>
+                      <label style={{ fontSize: '12px', color: '#166534' }}>Enter NGO Organization Name</label>
+                      <input
+                        type="text"
+                        className="input-control"
+                        placeholder="e.g. Karuna Rural Trust"
+                        value={customNGO}
+                        onChange={e => setCustomNGO(e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div className="form-field" style={{ marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12px', color: '#166534' }}>Your Official Role / Designation</label>
+                    <input
+                      type="text"
+                      className="input-control"
+                      placeholder="e.g. Relief Coordinator, Field Lead"
+                      value={designation}
+                      onChange={e => setDesignation(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-field" style={{ marginBottom: '0' }}>
+                    <label style={{ fontSize: '12px', color: '#166534' }}>Official Contact Number (10 digits)</label>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      className="input-control"
+                      placeholder="10-digit phone number"
+                      value={orgPhone}
+                      onChange={e => setOrgPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <button type="submit" className="btn-primary-green auth-action-btn">
@@ -122,7 +276,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             <p>
               Don't have an account?{' '}
               <button type="button" className="auth-link-button" onClick={() => setIsRegister(true)}>
-                Register
+                Register as NGO or Citizen
               </button>
             </p>
           )}

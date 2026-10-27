@@ -4,6 +4,7 @@ import Hero from './components/Hero';
 import AidRequestForm from './components/AidRequestForm';
 import NGODirectory from './components/NGODirectory';
 import RequestTracker from './components/RequestTracker';
+import NGODashboard from './components/NGODashboard';
 import RatingsSection from './components/RatingsSection';
 import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
@@ -128,11 +129,64 @@ function App() {
               onPostRequest={() => setActiveTab('request-aid')}
               onExploreDirectory={() => setActiveTab('directory')}
               onTrackRequests={() => setActiveTab('tracker')}
+              onOpenNGOPortal={() => setActiveTab('ngo-portal')}
               stats={{
                 totalNGOs: ngos.length,
                 totalRequests: requests.length
               }}
             />
+
+            {user?.role === 'ngo' && (
+              <div
+                style={{
+                  maxWidth: '1100px',
+                  margin: '20px auto 0',
+                  padding: '0 20px'
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '24px' }}>🏢</span>
+                    <div>
+                      <div style={{ fontWeight: '800', color: '#166534', fontSize: '15px' }}>
+                        Welcome back, {user.name} ({user.ngoName || 'NGO Representative'})!
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#15803d', marginTop: '2px' }}>
+                        You have incoming citizen distress signals matched to your organization awaiting field response.
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('ngo-portal')}
+                    style={{
+                      backgroundColor: '#16a34a',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Open NGO Response Hub &rarr;
+                  </button>
+                </div>
+              </div>
+            )}
 
             <section
               className="how-it-works-section"
@@ -304,6 +358,17 @@ function App() {
           />
         )}
 
+        {activeTab === 'ngo-portal' && (
+          <NGODashboard
+            user={user}
+            requests={requests}
+            ratings={ratings}
+            ngos={ngos}
+            onUpdateStatus={handleUpdateStatus}
+            onOpenAuth={() => setIsAuthOpen(true)}
+          />
+        )}
+
         {activeTab === 'reviews' && (
           <RatingsSection
             ratings={ratings}
@@ -414,6 +479,9 @@ function App() {
         onLoginSuccess={(loggedUser) => {
           api.setCurrentUser(loggedUser);
           setUser(loggedUser);
+          if (loggedUser.role === 'ngo') {
+            setActiveTab('ngo-portal');
+          }
         }}
       />
     </div>

@@ -384,6 +384,40 @@ export const INITIAL_REQUESTS = [
         breakdown: { text_similarity: 62, category_match: 100, location_match: 100 }
       }
     ]
+  },
+  {
+    _id: "req_104",
+    title: "120 Emergency Cooked Food Packets & Drinking Water in Mysuru",
+    description: "Monsoon flooding has stranded 35 families in low-lying area near Chamundi Foothills, Mysuru. Urgent need for cooked food packets, bottled drinking water, and dry rations for children.",
+    category: "Hunger & Food",
+    urgency: "High",
+    city: "Mysuru",
+    state: "Karnataka",
+    requesterName: "Siddaraju M",
+    requesterPhone: "9845123456",
+    requesterEmail: "siddaraju.m@gmail.com",
+    status: "Matched",
+    createdAt: "2026-10-27T10:30:00Z",
+    matchedNGOs: [
+      {
+        ngoId: "25",
+        name: "Mysuru Relief & Food Care",
+        category: "Hunger & Food",
+        city: "Mysuru",
+        matchScore: 96.5,
+        contactPhone: "+91-821-2495000",
+        breakdown: { text_similarity: 88, category_match: 100, location_match: 100 }
+      },
+      {
+        ngoId: "2",
+        name: "Akshaya Patra Foundation",
+        category: "Hunger & Food",
+        city: "Bengaluru",
+        matchScore: 88.0,
+        contactPhone: "+91-80-30143400",
+        breakdown: { text_similarity: 78, category_match: 100, location_match: 85 }
+      }
+    ]
   }
 ];
 
