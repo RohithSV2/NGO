@@ -133,13 +133,181 @@ function App() {
                 totalRequests: requests.length
               }}
             />
-            <div className="featured-ngos-section">
-              <div className="section-divider"></div>
-              <NGODirectory
-                ngos={ngos}
-                onDirectRequest={handleDirectRequest}
-              />
-            </div>
+
+            <section
+              className="how-it-works-section"
+              style={{
+                maxWidth: '1100px',
+                margin: '32px auto 48px',
+                padding: '0 20px'
+              }}
+            >
+              <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    color: '#16a34a',
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Operational Workflow
+                </span>
+                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-h)', margin: '0 0 8px' }}>
+                  How AidConnect Delivers Relief
+                </h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '15px', maxWidth: '640px', margin: '0 auto' }}>
+                  A decentralized, AI-augmented matching pipeline ensuring distress requests reach verified responders with zero latency.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '24px',
+                  marginBottom: '32px'
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '10px',
+                      backgroundColor: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '22px',
+                      marginBottom: '16px'
+                    }}
+                  >
+                    📝
+                  </div>
+                  <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-h)', marginBottom: '8px' }}>
+                    1. Post Distress Need
+                  </h3>
+                  <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
+                    Enter your emergency request in simple language. Specify your city, contact phone, and urgency level.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '10px',
+                      backgroundColor: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '22px',
+                      marginBottom: '16px'
+                    }}
+                  >
+                    ⚡
+                  </div>
+                  <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-h)', marginBottom: '8px' }}>
+                    2. AI Matching & Ranking
+                  </h3>
+                  <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
+                    Our NLP engine scores verified NGOs by category, geographic proximity, and crisis urgency.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '10px',
+                      backgroundColor: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '22px',
+                      marginBottom: '16px'
+                    }}
+                  >
+                    🤝
+                  </div>
+                  <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-h)', marginBottom: '8px' }}>
+                    3. Dispatch & Direct Rating
+                  </h3>
+                  <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
+                    Responding teams contact you directly to deliver aid. Once resolved, rate the assisting NGO right on your card.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '12px',
+                  padding: '20px 24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.08)'
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: '700', color: 'var(--text-h)' }}>
+                    Looking to browse all verified non-profit partners?
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+                    Explore contact numbers, registration IDs, focus sectors, and performance scores in our full directory.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary-green"
+                  onClick={() => setActiveTab('directory')}
+                  style={{ whiteSpace: 'nowrap', padding: '10px 20px', fontSize: '14px' }}
+                >
+                  Open NGO Directory &rarr;
+                </button>
+              </div>
+            </section>
           </>
         )}
 
