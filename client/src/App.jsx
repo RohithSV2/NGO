@@ -160,7 +160,10 @@ function App() {
         {activeTab === 'tracker' && (
           <RequestTracker
             requests={requests}
+            ratings={ratings}
+            user={user}
             onUpdateStatus={handleUpdateStatus}
+            onAddRating={handleAddRating}
             onOpenReviewModal={handleOpenReviewModal}
           />
         )}
