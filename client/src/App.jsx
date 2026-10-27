@@ -275,38 +275,6 @@ function App() {
                   </p>
                 </div>
               </div>
-
-              <div
-                style={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #bbf7d0',
-                  borderRadius: '12px',
-                  padding: '20px 24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '16px',
-                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.08)'
-                }}
-              >
-                <div>
-                  <h4 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: '700', color: 'var(--text-h)' }}>
-                    Looking to browse all verified non-profit partners?
-                  </h4>
-                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
-                    Explore contact numbers, registration IDs, focus sectors, and performance scores in our full directory.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="btn-primary-green"
-                  onClick={() => setActiveTab('directory')}
-                  style={{ whiteSpace: 'nowrap', padding: '10px 20px', fontSize: '14px' }}
-                >
-                  Open NGO Directory &rarr;
-                </button>
-              </div>
             </section>
           </>
         )}

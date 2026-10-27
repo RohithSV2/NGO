@@ -31,28 +31,14 @@ export default function Hero({ onPostRequest, onExploreDirectory, onTrackRequest
           onClick={onTrackRequests}
           title="Directly view live Aid Request Tracking Board"
         >
-          📋 Track Requests Board
-        </button>
-        <button
-          type="button"
-          className="btn-outline-green hero-btn"
-          onClick={onExploreDirectory}
-        >
-          Explore NGO Directory
+          📋 Track Requests
         </button>
       </div>
 
       <div className="hero-metrics-grid">
-        <div
-          className="metric-box clickable-metric"
-          onClick={onExploreDirectory}
-          role="button"
-          tabIndex={0}
-          title="Click to explore verified NGOs"
-          style={{ cursor: 'pointer' }}
-        >
+        <div className="metric-box">
           <div className="metric-value">{stats.totalNGOs || 25}+</div>
-          <div className="metric-name">Verified Partner NGOs &rarr;</div>
+          <div className="metric-name">Verified Partner NGOs</div>
         </div>
         <div
           className="metric-box clickable-metric"
