@@ -30,6 +30,14 @@ exports.createAidRequest = async (req, res) => {
       });
     }
 
+    const cleanPhone = String(requesterPhone).replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number must be exactly 10 digits'
+      });
+    }
+
     // 1. Run Machine Learning & NLP matching engine
     const matchedNGOs = await matchAidRequest({
       title,
@@ -63,7 +71,7 @@ exports.createAidRequest = async (req, res) => {
         state: state || '',
         address: address || '',
         requesterName,
-        requesterPhone,
+        requesterPhone: cleanPhone,
         requesterEmail: requesterEmail || '',
         user: req.user ? req.user._id : null,
         matchedNGOs: formattedMatches,
@@ -81,7 +89,7 @@ exports.createAidRequest = async (req, res) => {
         state: state || '',
         address: address || '',
         requesterName,
-        requesterPhone,
+        requesterPhone: cleanPhone,
         requesterEmail: requesterEmail || '',
         matchedNGOs: formattedMatches,
         status: formattedMatches.length > 0 ? 'Matched' : 'Pending',

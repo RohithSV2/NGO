@@ -74,9 +74,18 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
       return;
     }
 
+    const cleanPhone = formData.requesterPhone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      alert('Contact phone number must be exactly 10 digits.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const created = await api.createAidRequest(formData);
+      const created = await api.createAidRequest({
+        ...formData,
+        requesterPhone: cleanPhone
+      });
       setSubmittedRequest(created);
       onRequestSubmitted(created);
     } catch (err) {
@@ -237,16 +246,29 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
               </div>
 
               <div className="form-field">
-                <label htmlFor="req-phone">Contact Phone Number</label>
+                <label htmlFor="req-phone">
+                  Contact Phone Number <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(10 digits)</span>
+                </label>
                 <input
                   id="req-phone"
                   type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  maxLength={10}
                   className="input-control"
-                  placeholder="e.g. +91 98765 43210"
+                  placeholder="10-digit mobile number (e.g. 9876543210)"
                   value={formData.requesterPhone}
-                  onChange={e => setFormData({ ...formData, requesterPhone: e.target.value })}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setFormData({ ...formData, requesterPhone: digits });
+                  }}
                   required
                 />
+                {formData.requesterPhone && formData.requesterPhone.length > 0 && formData.requesterPhone.length < 10 && (
+                  <span style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px', display: 'block' }}>
+                    {10 - formData.requesterPhone.length} more digit{10 - formData.requesterPhone.length === 1 ? '' : 's'} required
+                  </span>
+                )}
               </div>
             </div>
 

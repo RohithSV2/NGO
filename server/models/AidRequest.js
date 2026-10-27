@@ -39,7 +39,8 @@ const aidRequestSchema = new mongoose.Schema(
     },
     requesterPhone: {
       type: String,
-      required: [true, 'Contact phone number is required']
+      required: [true, 'Contact phone number is required'],
+      match: [/^\d{10}$/, 'Phone number must be exactly 10 digits']
     },
     requesterEmail: {
       type: String,
