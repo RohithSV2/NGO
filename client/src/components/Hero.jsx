@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Hero({ onPostRequest, onExploreDirectory, stats }) {
+export default function Hero({ onPostRequest, onExploreDirectory, onTrackRequests, stats }) {
   return (
     <section className="hero-pro-section">
       <div className="hero-badge-pill">
@@ -28,6 +28,14 @@ export default function Hero({ onPostRequest, onExploreDirectory, stats }) {
         <button
           type="button"
           className="btn-outline-green hero-btn"
+          onClick={onTrackRequests}
+          title="Directly view live Aid Request Tracking Board"
+        >
+          📋 Track Requests Board
+        </button>
+        <button
+          type="button"
+          className="btn-outline-green hero-btn"
           onClick={onExploreDirectory}
         >
           Explore NGO Directory
@@ -35,13 +43,27 @@ export default function Hero({ onPostRequest, onExploreDirectory, stats }) {
       </div>
 
       <div className="hero-metrics-grid">
-        <div className="metric-box">
+        <div
+          className="metric-box clickable-metric"
+          onClick={onExploreDirectory}
+          role="button"
+          tabIndex={0}
+          title="Click to explore verified NGOs"
+          style={{ cursor: 'pointer' }}
+        >
           <div className="metric-value">{stats.totalNGOs || 25}+</div>
-          <div className="metric-name">Verified Partner NGOs</div>
+          <div className="metric-name">Verified Partner NGOs &rarr;</div>
         </div>
-        <div className="metric-box">
+        <div
+          className="metric-box clickable-metric"
+          onClick={onTrackRequests}
+          role="button"
+          tabIndex={0}
+          title="Click to directly open Aid Request Tracking Board"
+          style={{ cursor: 'pointer' }}
+        >
           <div className="metric-value">{stats.totalRequests || 40}+</div>
-          <div className="metric-name">Aid Requests Managed</div>
+          <div className="metric-name">Aid Requests Managed &rarr;</div>
         </div>
         <div className="metric-box">
           <div className="metric-value">98.5%</div>

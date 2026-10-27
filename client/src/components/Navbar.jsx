@@ -35,12 +35,37 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
 
         <div className="navbar-actions">
           {user ? (
-            <div className="user-profile-pill">
-              <span className="user-icon">👤</span>
-              <span className="user-display-name">{user.name}</span>
-              <button type="button" className="logout-action-btn" onClick={onLogout} title="Sign Out">
-                Sign Out
+            <div className="user-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn-quick-tracker"
+                onClick={() => setActiveTab('tracker')}
+                title="Directly view Aid Request Tracking Board"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  borderRadius: '20px',
+                  color: '#166534',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span>📋</span>
+                <span>My Tracker</span>
               </button>
+              <div className="user-profile-pill">
+                <span className="user-icon">👤</span>
+                <span className="user-display-name">{user.name}</span>
+                <button type="button" className="logout-action-btn" onClick={onLogout} title="Sign Out">
+                  Sign Out
+                </button>
+              </div>
             </div>
           ) : (
             <button type="button" className="btn-signin" onClick={onOpenAuth}>
