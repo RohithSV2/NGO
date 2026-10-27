@@ -1100,6 +1100,25 @@
   border-radius: 16px;
   padding: 3px 10px;
   font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.matched-ngo-chip.resolved-responder {
+  background-color: #dcfce7;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 1px #16a34a;
+}
+
+.chip-badge-resolved {
+  display: inline-block;
+  background-color: #16a34a;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .chip-score {

@@ -86,7 +86,7 @@ export default function RequestTracker({ requests, onUpdateStatus, onOpenReviewM
                       onClick={() => {
                         onUpdateStatus(req._id, 'Resolved');
                         if (req.matchedNGOs && req.matchedNGOs.length > 0) {
-                          onOpenReviewModal(req.matchedNGOs[0], req._id);
+                          onOpenReviewModal(req.matchedNGOs, req._id);
                         }
                       }}
                     >
@@ -99,7 +99,7 @@ export default function RequestTracker({ requests, onUpdateStatus, onOpenReviewM
                       className="btn-action-status btn-status-review"
                       onClick={() => {
                         if (req.matchedNGOs && req.matchedNGOs.length > 0) {
-                          onOpenReviewModal(req.matchedNGOs[0], req._id);
+                          onOpenReviewModal(req.matchedNGOs, req._id);
                         }
                       }}
                     >
@@ -112,6 +112,28 @@ export default function RequestTracker({ requests, onUpdateStatus, onOpenReviewM
               <h3 className="tracker-req-title">{req.title}</h3>
               <p className="tracker-req-desc">{req.description}</p>
 
+              {req.resolutionNotes && (
+                <div
+                  className="tracker-resolution-banner"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    borderRadius: '6px',
+                    color: '#166534',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    marginBottom: '12px'
+                  }}
+                >
+                  <span>✓</span>
+                  <span>{req.resolutionNotes}</span>
+                </div>
+              )}
+
               <div className="tracker-meta-details-bar">
                 <span><strong>Location:</strong> {req.city}{req.state ? `, ${req.state}` : ''}</span>
                 <span><strong>Contact:</strong> {req.requesterName}</span>
@@ -122,13 +144,20 @@ export default function RequestTracker({ requests, onUpdateStatus, onOpenReviewM
                 <div className="tracker-matched-section">
                   <span className="matched-label">Matched NGOs:</span>
                   <div className="matched-chips-wrap">
-                    {req.matchedNGOs.map((m, idx) => (
-                      <div key={idx} className="matched-ngo-chip">
-                        <span className="chip-score">{m.matchScore}%</span>
-                        <span className="chip-name">{m.name}</span>
-                        {m.contactPhone && <span className="chip-phone">({m.contactPhone})</span>}
-                      </div>
-                    ))}
+                    {req.matchedNGOs.map((m, idx) => {
+                      const isResolver = req.resolutionNotes && req.resolutionNotes.toLowerCase().includes(m.name.toLowerCase());
+                      return (
+                        <div
+                          key={idx}
+                          className={`matched-ngo-chip ${isResolver ? 'resolved-responder' : ''}`}
+                        >
+                          <span className="chip-score">{m.matchScore}%</span>
+                          <span className="chip-name">{m.name}</span>
+                          {isResolver && <span className="chip-badge-resolved">★ Resolved</span>}
+                          {m.contactPhone && <span className="chip-phone">({m.contactPhone})</span>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

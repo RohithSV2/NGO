@@ -73,22 +73,38 @@ function App() {
     setActiveTab('request-aid');
   };
 
-  const handleOpenReviewModal = (ngo, reqId) => {
-    setReviewModalTarget({ ngo, reqId });
+  const handleOpenReviewModal = (ngoOrList, reqId) => {
+    const list = Array.isArray(ngoOrList) ? ngoOrList : (ngoOrList ? [ngoOrList] : []);
+    const initialNGO = list.length > 0 ? list[0] : null;
+    setReviewModalTarget({
+      ngo: initialNGO,
+      matchedNGOs: list,
+      reqId
+    });
     setReviewScore(5);
     setReviewComment('');
   };
 
   const handleSaveResolutionReview = async () => {
-    if (!reviewModalTarget) return;
+    if (!reviewModalTarget || !reviewModalTarget.ngo) return;
+    const resolvedNgoName = reviewModalTarget.ngo.name;
     await handleAddRating({
-      ngoId: String(reviewModalTarget.ngo._id || reviewModalTarget.ngo.ngoId || reviewModalTarget.ngo.ngo_id || ''),
-      ngoName: reviewModalTarget.ngo.name,
+      ngoId: String(reviewModalTarget.ngo._id || reviewModalTarget.ngo.ngoId || reviewModalTarget.ngo.ngo_id || '1'),
+      ngoName: resolvedNgoName,
       userName: user ? user.name : 'Verified Citizen',
       rating: reviewScore,
-      review: reviewComment || 'Prompt response and effective assistance provided during our aid case.',
+      review: reviewComment || `Prompt response and effective assistance provided by ${resolvedNgoName}.`,
       aidRequestId: reviewModalTarget.reqId
     });
+
+    if (reviewModalTarget.reqId) {
+      await handleUpdateStatus(
+        reviewModalTarget.reqId,
+        'Resolved',
+        `Resolved by ${resolvedNgoName}`
+      );
+    }
+
     setReviewModalTarget(null);
   };
 
@@ -171,10 +187,37 @@ function App() {
               ✕
             </button>
             <div className="modal-top-section">
-              <h3>Rate & Review {reviewModalTarget.ngo.name}</h3>
+              <h3>Rate & Review {reviewModalTarget.ngo ? reviewModalTarget.ngo.name : 'Responding NGO'}</h3>
               <p>Share feedback on response velocity and assistance effectiveness.</p>
             </div>
             <div className="modal-content-section">
+              {reviewModalTarget.matchedNGOs && reviewModalTarget.matchedNGOs.length > 1 && (
+                <div className="form-field" style={{ marginBottom: '16px' }}>
+                  <label htmlFor="modal-ngo-select" style={{ display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                    Which NGO resolved your problem?
+                  </label>
+                  <select
+                    id="modal-ngo-select"
+                    className="input-control select-control"
+                    value={reviewModalTarget.ngo ? String(reviewModalTarget.ngo.ngoId || reviewModalTarget.ngo.ngo_id || reviewModalTarget.ngo.name) : ''}
+                    onChange={(e) => {
+                      const selected = reviewModalTarget.matchedNGOs.find(
+                        n => String(n.ngoId || n.ngo_id || n.name) === e.target.value
+                      );
+                      if (selected) {
+                        setReviewModalTarget(prev => ({ ...prev, ngo: selected }));
+                      }
+                    }}
+                  >
+                    {reviewModalTarget.matchedNGOs.map((n, idx) => (
+                      <option key={idx} value={String(n.ngoId || n.ngo_id || n.name)}>
+                        {n.name} {n.matchScore ? `(${n.matchScore}% match)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="form-field">
                 <label>Rating (1 to 5 Stars):</label>
                 <div className="star-selection-row">
@@ -215,6 +258,7 @@ function App() {
                 type="button"
                 className="btn-card-primary"
                 onClick={handleSaveResolutionReview}
+                disabled={!reviewModalTarget.ngo}
               >
                 Submit Feedback
               </button>
@@ -237,3 +281,4 @@ function App() {
 }
 
 export default App;
+
