@@ -8,12 +8,37 @@ export default function RequestTracker({
   onUpdateStatus,
   onAddRating,
   user,
-  onNavigateToPostRequest
+  onNavigateToPostRequest,
+  onNavigateToNGOHub
 }) {
   const isNGO = user?.role === 'ngo';
-  const isCitizen = user?.role === 'citizen' || (!isNGO && !!user);
 
-  // Filter requests belonging to this citizen (a user can have many requests)
+  // If viewed by an NGO Representative, inform them that this board is dedicated to citizens/requesters
+  if (isNGO) {
+    return (
+      <div className="section-container" style={{ maxWidth: '800px', margin: '40px auto', textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', margin: '0 auto 16px' }}>
+          🏢
+        </div>
+        <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-h)', margin: '0 0 10px' }}>
+          Dedicated Requester Tracking Board
+        </h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.6', margin: '0 0 24px' }}>
+          This Aid Request Tracking Board is reserved exclusively for citizens to track their submitted distress requests and rate responding teams. As an authorized NGO Representative ({user.ngoName || 'NGO'}), please manage, view, dispatch, and resolve missions in your dedicated <strong>NGO Response Hub</strong>.
+        </p>
+        <button
+          type="button"
+          className="btn-primary-green"
+          onClick={onNavigateToNGOHub}
+          style={{ padding: '10px 24px', fontSize: '14px', fontWeight: '700' }}
+        >
+          Open NGO Response Hub &rarr;
+        </button>
+      </div>
+    );
+  }
+
+  // Filter requests submitted by this citizen (a user can have many requests)
   const myRequests = useMemo(() => {
     if (!user) return [];
     const nameLower = (user.name || '').toLowerCase().trim();
@@ -25,38 +50,16 @@ export default function RequestTracker({
     });
   }, [requests, user]);
 
-  // Filter requests matched to this NGO representative
-  const ngoAssignedRequests = useMemo(() => {
-    if (!isNGO) return [];
-    const ngoNameLower = (user?.ngoName || 'mysuru relief').toLowerCase().trim();
-    return requests.filter(r => {
-      return Array.isArray(r.matchedNGOs) && r.matchedNGOs.some(
-        m => (m.name || '').toLowerCase().includes(ngoNameLower) || ngoNameLower.includes((m.name || '').toLowerCase())
-      );
-    });
-  }, [requests, isNGO, user]);
-
-  // Scope filter:
-  // For NGO: default to 'assigned', can toggle to 'all'
-  // For Citizen: default to 'mine' if they have requests, can toggle to 'all'
-  const [activeScope, setActiveScope] = useState(() => {
-    if (isNGO) return 'assigned';
-    if (isCitizen && myRequests.length > 0) return 'mine';
-    return 'all';
-  });
-
+  const [activeScope, setActiveScope] = useState(() => (myRequests.length > 0 ? 'mine' : 'all'));
   const [activeStatus, setActiveStatus] = useState('All');
 
-  // Compute scoped list
+  // Compute scoped list for the citizen
   const scopedRequests = useMemo(() => {
-    if (isNGO && activeScope === 'assigned') {
-      return ngoAssignedRequests;
-    }
-    if (isCitizen && activeScope === 'mine') {
+    if (user && activeScope === 'mine') {
       return myRequests;
     }
     return requests;
-  }, [requests, isNGO, isCitizen, activeScope, ngoAssignedRequests, myRequests]);
+  }, [requests, user, activeScope, myRequests]);
 
   // Apply status filter
   const filtered = useMemo(() => {
@@ -68,27 +71,22 @@ export default function RequestTracker({
 
   return (
     <div className="section-container">
-      {/* Role-Aware Section Header */}
+      {/* Requester Dedicated Header */}
       <div className="section-header-block">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
           <div>
-            <h2>
-              {isNGO ? 'Operations & Mission Tracking Board' : 'Aid Request Tracking Board'}
-            </h2>
+            <h2>Citizen Aid Request Tracking Board</h2>
             <p>
-              {isNGO
-                ? `Authorized Representative View (${user?.ngoName || 'NGO'}). View, track in-field progress, and resolve humanitarian aid requests.`
-                : 'Monitor the status of your distress requests, connect with matched responders, and rate verified assistance directly.'}
+              Dedicated tracking board for aid requesters. Monitor registered distress needs, contact verified responding NGOs, and rate resolution assistance directly on your card.
             </p>
           </div>
 
-          {/* Action button on right */}
-          {!isNGO && onNavigateToPostRequest && (
+          {onNavigateToPostRequest && (
             <button
               type="button"
               className="btn-primary-green"
               onClick={onNavigateToPostRequest}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', fontSize: '13px' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', fontSize: '13px', fontWeight: '700' }}
             >
               <span>+</span>
               <span>Post Another Aid Request</span>
@@ -97,52 +95,32 @@ export default function RequestTracker({
         </div>
       </div>
 
-      {/* Role-Aware Scope Filter Toggle */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        {isNGO ? (
-          <>
-            <button
-              type="button"
-              className={`sector-tab-pill ${activeScope === 'assigned' ? 'active' : ''}`}
-              onClick={() => setActiveScope('assigned')}
-              style={{ fontWeight: '700' }}
-            >
-              🏢 Assigned to {user?.ngoName || 'My NGO'} ({ngoAssignedRequests.length})
-            </button>
-            <button
-              type="button"
-              className={`sector-tab-pill ${activeScope === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveScope('all')}
-            >
-              🌐 All Community Requests ({requests.length})
-            </button>
-          </>
-        ) : isCitizen ? (
-          <>
-            <button
-              type="button"
-              className={`sector-tab-pill ${activeScope === 'mine' ? 'active' : ''}`}
-              onClick={() => setActiveScope('mine')}
-              style={{ fontWeight: '700' }}
-            >
-              👤 My Submitted Requests ({myRequests.length})
-            </button>
-            <button
-              type="button"
-              className={`sector-tab-pill ${activeScope === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveScope('all')}
-            >
-              🌐 All Community Requests ({requests.length})
-            </button>
-          </>
-        ) : null}
+      {/* Requester Scope Filter Toggle */}
+      {user && (
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            className={`sector-tab-pill ${activeScope === 'mine' ? 'active' : ''}`}
+            onClick={() => setActiveScope('mine')}
+            style={{ fontWeight: '700' }}
+          >
+            👤 My Submitted Requests ({myRequests.length})
+          </button>
+          <button
+            type="button"
+            className={`sector-tab-pill ${activeScope === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveScope('all')}
+          >
+            🌐 All Community Requests ({requests.length})
+          </button>
 
-        {isCitizen && myRequests.length > 0 && activeScope === 'mine' && (
-          <span style={{ fontSize: '12px', color: '#166534', backgroundColor: '#f0fdf4', padding: '4px 10px', borderRadius: '12px', border: '1px solid #bbf7d0', marginLeft: 'auto' }}>
-            ✓ Showing your {myRequests.length} active request{myRequests.length === 1 ? '' : 's'} (Users can submit multiple needs)
-          </span>
-        )}
-      </div>
+          {myRequests.length > 0 && activeScope === 'mine' && (
+            <span style={{ fontSize: '12px', color: '#166534', backgroundColor: '#f0fdf4', padding: '4px 10px', borderRadius: '12px', border: '1px solid #bbf7d0', marginLeft: 'auto' }}>
+              ✓ Showing your {myRequests.length} active request{myRequests.length === 1 ? '' : 's'} (Users can submit multiple requests)
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Status Filter Tabs */}
       <div className="tracker-filter-tabs">
@@ -166,16 +144,16 @@ export default function RequestTracker({
         {filtered.length === 0 ? (
           <div className="empty-tracker-message" style={{ textAlign: 'center', padding: '36px 20px' }}>
             <p style={{ margin: 0, fontSize: '15px', color: 'var(--text-muted)' }}>
-              No aid requests currently found under "{activeStatus}" status in this view.
+              No aid requests currently found under the "{activeStatus}" status.
             </p>
-            {!isNGO && onNavigateToPostRequest && (
+            {onNavigateToPostRequest && (
               <button
                 type="button"
                 className="btn-outline-green"
                 onClick={onNavigateToPostRequest}
                 style={{ marginTop: '14px' }}
               >
-                + Post a New Aid Request
+                + Post an Aid Request
               </button>
             )}
           </div>
@@ -188,7 +166,6 @@ export default function RequestTracker({
               onUpdateStatus={onUpdateStatus}
               onAddRating={onAddRating}
               user={user}
-              isNGO={isNGO}
             />
           ))
         )}
@@ -197,14 +174,12 @@ export default function RequestTracker({
   );
 }
 
-function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, isNGO }) {
+function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [selectedNgo, setSelectedNgo] = useState(() => (req.matchedNGOs && req.matchedNGOs.length > 0 ? req.matchedNGOs[0] : null));
   const [score, setScore] = useState(5);
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [resolutionInput, setResolutionInput] = useState('');
-  const [showResolveInput, setShowResolveInput] = useState(false);
 
   // Check if this request has already been rated
   const existingReview = ratings.find(
@@ -234,17 +209,6 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, isN
   const handleResolveAndOpenReview = () => {
     onUpdateStatus(req._id, 'Resolved');
     setIsReviewOpen(true);
-  };
-
-  const handleNgoAccept = () => {
-    const note = `Accepted by ${user?.ngoName || 'Responding NGO'}. Relief dispatched.`;
-    onUpdateStatus(req._id, 'In Progress', note);
-  };
-
-  const handleNgoConfirmResolve = () => {
-    const note = resolutionInput.trim() || `Relief completed and verified by ${user?.ngoName || 'Responding NGO'}.`;
-    onUpdateStatus(req._id, 'Resolved', note);
-    setShowResolveInput(false);
   };
 
   const handleSubmitInlineReview = async () => {
@@ -287,63 +251,34 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, isN
           </span>
         </div>
 
-        {/* Role-Specific Actions */}
+        {/* Requester Action Buttons */}
         <div className="tracker-action-buttons">
-          {isNGO ? (
-            /* Representative: View, Track, and Resolve Actions */
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              {(req.status === 'Matched' || req.status === 'Pending') && (
-                <button
-                  type="button"
-                  className="btn-action-status btn-status-start"
-                  onClick={handleNgoAccept}
-                  title="Accept request and dispatch field relief"
-                >
-                  🚚 Accept & Dispatch
-                </button>
-              )}
-              {req.status === 'In Progress' && (
-                <button
-                  type="button"
-                  className="btn-action-status btn-status-resolve"
-                  onClick={() => setShowResolveInput(!showResolveInput)}
-                  title="Mark relief delivered and mission resolved"
-                >
-                  ✅ Resolve Mission
-                </button>
-              )}
-            </div>
-          ) : (
-            /* Citizen / User: Track and Rate Actions */
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              {req.status === 'Matched' && (
-                <button
-                  type="button"
-                  className="btn-action-status btn-status-start"
-                  onClick={() => onUpdateStatus(req._id, 'In Progress')}
-                >
-                  Start Operation
-                </button>
-              )}
-              {req.status === 'In Progress' && (
-                <button
-                  type="button"
-                  className="btn-action-status btn-status-resolve"
-                  onClick={handleResolveAndOpenReview}
-                >
-                  Mark Resolved
-                </button>
-              )}
-              {req.status === 'Resolved' && !existingReview && (
-                <button
-                  type="button"
-                  className="btn-action-status btn-status-review"
-                  onClick={() => setIsReviewOpen(!isReviewOpen)}
-                >
-                  {isReviewOpen ? 'Close Rating' : '★ Rate & Review'}
-                </button>
-              )}
-            </div>
+          {req.status === 'Matched' && (
+            <button
+              type="button"
+              className="btn-action-status btn-status-start"
+              onClick={() => onUpdateStatus(req._id, 'In Progress')}
+            >
+              Start Operation
+            </button>
+          )}
+          {req.status === 'In Progress' && (
+            <button
+              type="button"
+              className="btn-action-status btn-status-resolve"
+              onClick={handleResolveAndOpenReview}
+            >
+              Mark Resolved
+            </button>
+          )}
+          {req.status === 'Resolved' && !existingReview && (
+            <button
+              type="button"
+              className="btn-action-status btn-status-review"
+              onClick={() => setIsReviewOpen(!isReviewOpen)}
+            >
+              {isReviewOpen ? 'Close Rating' : '★ Rate & Review'}
+            </button>
           )}
         </div>
       </div>
@@ -374,7 +309,7 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, isN
         </div>
       )}
 
-      {/* Requester Contact Details & Direct Connect Hub */}
+      {/* Requester Contact Details Bar */}
       <div className="tracker-meta-details-bar" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px' }}>
         <span><strong>Location:</strong> {req.city}{req.state ? `, ${req.state}` : ''}</span>
         <span><strong>Requester:</strong> {req.requesterName}</span>
@@ -384,83 +319,12 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, isN
             📞 {req.requesterPhone}
           </a>
         </span>
-
-        {/* Representative Direct Connect Shortcuts */}
-        {isNGO && cleanPhone && (
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
-            <a
-              href={`tel:${cleanPhone}`}
-              style={{
-                fontSize: '11px',
-                fontWeight: '700',
-                backgroundColor: '#16a34a',
-                color: '#ffffff',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                textDecoration: 'none'
-              }}
-            >
-              📞 Call
-            </a>
-            <a
-              href={`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`Hello ${req.requesterName}, this is ${user?.ngoName || 'NGO Responder'} regarding your distress request "${req.title}".`)}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                fontSize: '11px',
-                fontWeight: '700',
-                backgroundColor: '#25d366',
-                color: '#ffffff',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                textDecoration: 'none'
-              }}
-            >
-              💬 WhatsApp
-            </a>
-          </div>
-        )}
       </div>
-
-      {/* NGO Representative Inline Resolve Form */}
-      {isNGO && showResolveInput && req.status === 'In Progress' && (
-        <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '6px' }}>
-            Mission Completion Notes (e.g., 50 food packets delivered, medical team provided first aid):
-          </label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              className="input-control"
-              placeholder="Enter resolution details..."
-              value={resolutionInput}
-              onChange={e => setResolutionInput(e.target.value)}
-              style={{ fontSize: '13px' }}
-            />
-            <button
-              type="button"
-              className="btn-primary-green"
-              onClick={handleNgoConfirmResolve}
-              style={{ padding: '6px 14px', fontSize: '12px', whiteSpace: 'nowrap' }}
-            >
-              Confirm Resolved
-            </button>
-            <button
-              type="button"
-              className="btn-card-secondary"
-              onClick={() => setShowResolveInput(false)}
-              style={{ padding: '6px 10px', fontSize: '12px' }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Matched NGOs Section */}
       {req.matchedNGOs && req.matchedNGOs.length > 0 && (
         <div className="tracker-matched-section">
-          <span className="matched-label">Matched NGOs:</span>
+          <span className="matched-label">Matched Responding NGOs:</span>
           <div className="matched-chips-wrap">
             {req.matchedNGOs.map((m, idx) => {
               const isResolver = req.resolutionNotes && req.resolutionNotes.toLowerCase().includes(m.name.toLowerCase());
@@ -476,10 +340,10 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, isN
                     <a
                       href={`tel:${m.contactPhone}`}
                       className="chip-phone"
-                      style={{ color: 'inherit', textDecoration: 'none' }}
+                      style={{ color: 'inherit', textDecoration: 'none', marginLeft: '4px' }}
                       title={`Call ${m.name}`}
                     >
-                      ({m.contactPhone})
+                      📞 {m.contactPhone}
                     </a>
                   )}
                 </div>

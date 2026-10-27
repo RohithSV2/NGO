@@ -4,12 +4,11 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
   const isNGO = user?.role === 'ngo';
 
   // Role-specific navigation items:
-  // Representative: Response Hub (View, Connect, Resolve), Track Operations, Directory, Reviews
-  // Citizen / User: Overview, Post Aid Request (can have many), Track My Requests, Directory, Reviews
+  // Representative: Dedicated to NGO Response Hub, Directory, and Reviews (Aid Request Tracking is dedicated exclusively to citizens/requesters)
+  // Citizen / User: Overview, Post Aid Request (can have many), Track My Requests (dedicated to citizen requesters), Directory, Reviews
   const navItems = isNGO
     ? [
         { id: 'ngo-portal', label: '🏢 NGO Response Hub' },
-        { id: 'tracker', label: '📋 Track Operations' },
         { id: 'directory', label: 'NGO Directory' },
         { id: 'reviews', label: 'Reviews & Ratings' }
       ]

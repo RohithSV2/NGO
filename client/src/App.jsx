@@ -43,6 +43,13 @@ function App() {
     fetchData();
   }, []);
 
+  // Ensure NGO representatives stay within representative operations and are not directed to citizen tracker/form
+  useEffect(() => {
+    if (user?.role === 'ngo' && (activeTab === 'tracker' || activeTab === 'request-aid')) {
+      setActiveTab('ngo-portal');
+    }
+  }, [user, activeTab]);
+
   const handleRequestSubmitted = (newRequest) => {
     setRequests(prev => [newRequest, ...prev]);
   };
@@ -358,6 +365,7 @@ function App() {
             onAddRating={handleAddRating}
             onOpenReviewModal={handleOpenReviewModal}
             onNavigateToPostRequest={() => setActiveTab('request-aid')}
+            onNavigateToNGOHub={() => setActiveTab('ngo-portal')}
           />
         )}
 
