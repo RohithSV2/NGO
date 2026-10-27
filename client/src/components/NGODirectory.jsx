@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { semanticNLPSearch, parseSearchIntent } from '../services/nlpSearch';
+import NLPInspectorModal from './NLPInspectorModal';
 
 const TOP_SECTORS = [
   'All',
@@ -21,6 +22,7 @@ export default function NGODirectory({ ngos, onDirectRequest }) {
   const [selectedSector, setSelectedSector] = useState('All');
   const [selectedCity, setSelectedCity] = useState('');
   const [activeModalNGO, setActiveModalNGO] = useState(null);
+  const [showNLPInspector, setShowNLPInspector] = useState(false);
 
   const cities = useMemo(() => {
     const set = new Set();
@@ -106,6 +108,28 @@ export default function NGODirectory({ ngos, onDirectRequest }) {
             <option key={city} value={city}>{city}</option>
           ))}
         </select>
+
+        <button
+          type="button"
+          onClick={() => setShowNLPInspector(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '10px 14px',
+            backgroundColor: '#f0fdf4',
+            border: '1px solid #86efac',
+            borderRadius: '6px',
+            color: '#166534',
+            fontSize: '13px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+          title="Inspect the step-by-step computational linguistics and vector space math"
+        >
+          ⚡ Inspect NLP Engine
+        </button>
       </div>
 
       {/* NLP Semantic Search Feedback Pill */}
@@ -170,6 +194,25 @@ export default function NGODirectory({ ngos, onDirectRequest }) {
           <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#15803d' }}>
             Ranked by AI Semantic Relevance ({filteredNGOs.length} matches)
           </span>
+          <button
+            type="button"
+            onClick={() => setShowNLPInspector(true)}
+            style={{
+              background: '#16a34a',
+              color: '#ffffff',
+              border: 'none',
+              padding: '3px 10px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            🔬 Pipeline Inspector
+          </button>
         </div>
       )}
 
@@ -446,6 +489,12 @@ export default function NGODirectory({ ngos, onDirectRequest }) {
           </div>
         </div>
       )}
+      {/* NLP Pipeline Inspector Modal */}
+      <NLPInspectorModal
+        isOpen={showNLPInspector}
+        onClose={() => setShowNLPInspector(false)}
+        text={searchQuery}
+      />
     </div>
   );
 }

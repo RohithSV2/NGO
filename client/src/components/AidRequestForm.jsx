@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import NLPInspectorModal from './NLPInspectorModal';
 
 const CATEGORIES = [
   'Hunger & Food Relief',
@@ -39,6 +40,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState(null);
+  const [showNLPInspector, setShowNLPInspector] = useState(false);
 
   // Debounced live matching
   useEffect(() => {
@@ -291,6 +293,23 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
                 <span className="green-dot"></span>
                 AI Matching Engine
               </div>
+              <button
+                type="button"
+                onClick={() => setShowNLPInspector(true)}
+                style={{
+                  background: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  color: '#166534',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+                title="Inspect NLP computational linguistics pipeline"
+              >
+                🔬 View NLP Math
+              </button>
               {loadingMatches && <span className="matching-spinner-text">Matching...</span>}
             </div>
 
@@ -333,6 +352,12 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
           </aside>
         </div>
       )}
+      {/* NLP Pipeline Inspector Modal */}
+      <NLPInspectorModal
+        isOpen={showNLPInspector}
+        onClose={() => setShowNLPInspector(false)}
+        text={`${formData.title ? formData.title + '. ' : ''}${formData.description || 'urgent food and cooked meals needed in Mysuru for flood victims'}`}
+      />
     </div>
   );
 }
