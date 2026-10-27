@@ -11,7 +11,23 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+    if (isRegister && !name.trim()) {
+      alert('Please enter your full name.');
+      return;
+    }
+    if (!email.trim()) {
+      alert('Please enter your email address.');
+      return;
+    }
+    if (!password.trim()) {
+      alert('Please enter your password.');
+      return;
+    }
+    if (password.trim().length < 6) {
+      alert('Password must be at least 6 characters.');
+      return;
+    }
+
     const user = {
       id: 'usr_' + Date.now(),
       name: name.trim() || email.split('@')[0],
@@ -36,7 +52,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         <form className="auth-form-content" onSubmit={handleSubmit}>
           {isRegister && (
             <div className="form-field">
-              <label>Full Name *</label>
+              <label>Full Name</label>
               <input
                 type="text"
                 className="input-control"
@@ -49,7 +65,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
           )}
 
           <div className="form-field">
-            <label>Email Address *</label>
+            <label>Email Address</label>
             <input
               type="email"
               className="input-control"
@@ -61,11 +77,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
           </div>
 
           <div className="form-field">
-            <label>Password *</label>
+            <label>Password</label>
             <input
               type="password"
               className="input-control"
               placeholder="••••••••"
+              minLength={6}
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
@@ -74,11 +91,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
           {isRegister && (
             <div className="form-field">
-              <label>Account Type *</label>
+              <label>Account Type</label>
               <select
                 className="input-control select-control"
                 value={role}
                 onChange={e => setRole(e.target.value)}
+                required
               >
                 <option value="citizen">Citizen / Aid Requester</option>
                 <option value="ngo">NGO Representative</option>
