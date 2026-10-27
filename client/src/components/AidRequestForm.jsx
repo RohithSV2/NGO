@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { api } from '../services/api';
-import NLPInspectorModal from './NLPInspectorModal';
 
 const CATEGORIES = [
   'Hunger & Food Relief',
@@ -36,39 +35,8 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
     description: ''
   });
 
-  const [liveMatches, setLiveMatches] = useState([]);
-  const [loadingMatches, setLoadingMatches] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState(null);
-  const [showNLPInspector, setShowNLPInspector] = useState(false);
-
-  // Debounced live matching
-  useEffect(() => {
-    if (!formData.description || formData.description.trim().length < 8) {
-      setLiveMatches([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setLoadingMatches(true);
-      try {
-        const matches = await api.getMatchPreview({
-          title: formData.title,
-          description: formData.description,
-          category: formData.category,
-          city: formData.city,
-          urgency: formData.urgency
-        });
-        setLiveMatches(matches.slice(0, 3));
-      } catch (e) {
-        // Handle silently
-      } finally {
-        setLoadingMatches(false);
-      }
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [formData.title, formData.description, formData.category, formData.city, formData.urgency]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -146,7 +114,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
                 setSubmittedRequest(null);
                 setFormData({
                   title: '',
-                  category: 'Disaster Relief',
+                  category: 'Hunger & Food Relief',
                   urgency: 'Medium',
                   city: '',
                   state: '',
@@ -162,7 +130,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
           </div>
         </div>
       ) : (
-        <div className="form-matcher-layout">
+        <div style={{ maxWidth: '780px', margin: '0 auto' }}>
           {/* Main Form */}
           <form className="pro-form-card" onSubmit={handleSubmit}>
             <div className="form-field">
@@ -285,79 +253,8 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
               {submitting ? 'Processing Request...' : 'Submit Aid Request'}
             </button>
           </form>
-
-          {/* AI Matching Preview Sidepanel */}
-          <aside className="ai-matcher-panel">
-            <div className="matcher-panel-header">
-              <div className="matcher-title">
-                <span className="green-dot"></span>
-                AI Matching Engine
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowNLPInspector(true)}
-                style={{
-                  background: '#f0fdf4',
-                  border: '1px solid #86efac',
-                  color: '#166534',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-                title="Inspect NLP computational linguistics pipeline"
-              >
-                🔬 View NLP Math
-              </button>
-              {loadingMatches && <span className="matching-spinner-text">Matching...</span>}
-            </div>
-
-            <p className="matcher-description">
-              As you describe your request, the matching algorithm ranks suitable partner NGOs based on sector alignment, keywords, and location.
-            </p>
-
-            {liveMatches.length > 0 ? (
-              <div className="matcher-results-list">
-                {liveMatches.map((ngo, idx) => (
-                  <div key={idx} className="matcher-result-item">
-                    <div className="matcher-item-top">
-                      <span className="matcher-item-rank">#{idx + 1}</span>
-                      <strong className="matcher-item-name">{ngo.name}</strong>
-                      <span className="matcher-item-score">{ngo.match_score}%</span>
-                    </div>
-
-                    <div className="progress-track">
-                      <div
-                        className="progress-fill"
-                        style={{ width: `${Math.min(ngo.match_score, 100)}%` }}
-                      ></div>
-                    </div>
-
-                    <div className="matcher-item-meta">
-                      <span>{ngo.category}</span>
-                      <span>&bull;</span>
-                      <span>{ngo.city}</span>
-                      <span>&bull;</span>
-                      <span>⭐ {ngo.rating}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="matcher-idle-box">
-                <p>Enter the request details on the left to see live NGO recommendations.</p>
-              </div>
-            )}
-          </aside>
         </div>
       )}
-      {/* NLP Pipeline Inspector Modal */}
-      <NLPInspectorModal
-        isOpen={showNLPInspector}
-        onClose={() => setShowNLPInspector(false)}
-        text={`${formData.title ? formData.title + '. ' : ''}${formData.description || 'urgent food and cooked meals needed in Mysuru for flood victims'}`}
-      />
     </div>
   );
 }
