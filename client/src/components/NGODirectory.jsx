@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { semanticNLPSearch, parseSearchIntent } from '../services/nlpSearch';
 
 const TOP_SECTORS = [
   'All',
@@ -29,40 +30,14 @@ export default function NGODirectory({ ngos, onDirectRequest }) {
     return Array.from(set).sort();
   }, [ngos]);
 
+  // Extract NLP Semantic Search Intent
+  const searchIntent = useMemo(() => {
+    return parseSearchIntent(searchQuery);
+  }, [searchQuery]);
+
+  // Multi-dimensional NLP Semantic Search & Ranking
   const filteredNGOs = useMemo(() => {
-    return ngos.filter(ngo => {
-      const s = searchQuery.toLowerCase();
-      const sectorsList = Array.isArray(ngo.sectors) ? ngo.sectors : [];
-      const helpsList = Array.isArray(ngo.helps) ? ngo.helps : [];
-      const servicesList = Array.isArray(ngo.services) ? ngo.services : [];
-      const areasList = Array.isArray(ngo.areas_served) ? ngo.areas_served : [];
-
-      const matchesSearch =
-        searchQuery === '' ||
-        (ngo.name || '').toLowerCase().includes(s) ||
-        (ngo.description || '').toLowerCase().includes(s) ||
-        (ngo.category || '').toLowerCase().includes(s) ||
-        (ngo.location || '').toLowerCase().includes(s) ||
-        (ngo.registration_number || '').toLowerCase().includes(s) ||
-        sectorsList.some(sec => sec.toLowerCase().includes(s)) ||
-        helpsList.some(h => h.toLowerCase().includes(s)) ||
-        servicesList.some(srv => srv.toLowerCase().includes(s)) ||
-        areasList.some(a => a.toLowerCase().includes(s));
-
-      const matchesSector =
-        selectedSector === 'All' ||
-        (ngo.category || '').toLowerCase().includes(selectedSector.toLowerCase()) ||
-        sectorsList.some(sec => sec.toLowerCase().includes(selectedSector.toLowerCase())) ||
-        helpsList.some(h => h.toLowerCase().includes(selectedSector.toLowerCase()));
-
-      const matchesCity =
-        selectedCity === '' ||
-        (ngo.city || '').toLowerCase() === selectedCity.toLowerCase() ||
-        (ngo.location || '').toLowerCase().includes(selectedCity.toLowerCase()) ||
-        areasList.some(a => a.toLowerCase().includes(selectedCity.toLowerCase()));
-
-      return matchesSearch && matchesSector && matchesCity;
-    });
+    return semanticNLPSearch(ngos, searchQuery, selectedSector, selectedCity);
   }, [ngos, searchQuery, selectedSector, selectedCity]);
 
   // Helper to extract clean phone and email
@@ -106,7 +81,7 @@ export default function NGODirectory({ ngos, onDirectRequest }) {
           <input
             type="text"
             className="search-input-field"
-            placeholder="Search by NGO name, registration number, sector, or focus areas..."
+            placeholder="Search using natural language or keywords (e.g. food packets in Mysuru, emergency blood donor)..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -132,6 +107,71 @@ export default function NGODirectory({ ngos, onDirectRequest }) {
           ))}
         </select>
       </div>
+
+      {/* NLP Semantic Search Feedback Pill */}
+      {searchIntent && searchIntent.isNaturalLanguage && (
+        <div
+          className="nlp-search-status-bar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px',
+            padding: '10px 14px',
+            backgroundColor: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: '8px',
+            marginTop: '12px',
+            fontSize: '13px',
+            color: '#166534'
+          }}
+        >
+          <span style={{ fontWeight: '700' }}>⚡ NLP Semantic Search:</span>
+          {searchIntent.category && (
+            <span
+              style={{
+                backgroundColor: '#dcfce7',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                border: '1px solid #86efac',
+                fontSize: '12px'
+              }}
+            >
+              Intent: <strong>{searchIntent.category}</strong>
+            </span>
+          )}
+          {searchIntent.location && (
+            <span
+              style={{
+                backgroundColor: '#dcfce7',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                border: '1px solid #86efac',
+                fontSize: '12px'
+              }}
+            >
+              Location: <strong>{searchIntent.location}</strong>
+            </span>
+          )}
+          {searchIntent.urgency && (
+            <span
+              style={{
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                border: '1px solid #fde68a',
+                fontSize: '12px'
+              }}
+            >
+              Urgency: <strong>{searchIntent.urgency}</strong>
+            </span>
+          )}
+          <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#15803d' }}>
+            Ranked by AI Semantic Relevance ({filteredNGOs.length} matches)
+          </span>
+        </div>
+      )}
 
       {/* Sector Pill Tabs */}
       <div className="sector-pills-container">
@@ -168,6 +208,21 @@ export default function NGODirectory({ ngos, onDirectRequest }) {
                   <h3 className="pro-card-title">{ngo.name}</h3>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
                     <span className="verified-green-badge">✓ Verified</span>
+                    {ngo.nlpRelevance && (
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          background: '#dcfce7',
+                          color: '#166534',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontWeight: '700',
+                          border: '1px solid #86efac'
+                        }}
+                      >
+                        ⚡ {ngo.nlpRelevance}% NLP Match
+                      </span>
+                    )}
                     {ngo.registration_number && (
                       <span style={{ fontSize: '0.75rem', background: '#e2e8f0', color: '#475569', padding: '2px 6px', borderRadius: '4px' }}>
                         Reg: {ngo.registration_number}
