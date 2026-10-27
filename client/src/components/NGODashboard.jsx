@@ -183,7 +183,7 @@ export default function NGODashboard({
               </span>
             ) : (
               <span>
-                Simulating Response View for <strong>{activeNgoName}</strong> &bull;{' '}
+                Operations Desk for <strong>{activeNgoName}</strong> &bull;{' '}
                 <button
                   type="button"
                   onClick={onOpenAuth}
@@ -199,7 +199,7 @@ export default function NGODashboard({
                     marginLeft: '8px'
                   }}
                 >
-                  Sign In as NGO Rep
+                  Sign In as Representative
                 </button>
               </span>
             )}
@@ -718,7 +718,7 @@ export default function NGODashboard({
               </div>
               <div>
                 <span style={{ color: '#64748b' }}>Emergency Phone:</span>{' '}
-                <a href={`tel:${currentNGOObj?.contact_phone || '9845123456'}`} style={{ color: '#16a34a', fontWeight: '700', textDecoration: 'none' }}>
+                <a href={`tel:${currentNGOObj?.contact_phone || '+91-821-2495000'}`} style={{ color: '#16a34a', fontWeight: '700', textDecoration: 'none' }}>
                   {currentNGOObj?.contact_phone || '+91-821-2495000'}
                 </a>
               </div>

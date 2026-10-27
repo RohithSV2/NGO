@@ -21,8 +21,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [role, setRole] = useState('citizen');
   const [selectedNGO, setSelectedNGO] = useState('Mysuru Relief & Food Care');
   const [customNGO, setCustomNGO] = useState('');
-  const [designation, setDesignation] = useState('Relief Coordinator');
-  const [orgPhone, setOrgPhone] = useState('9845123456');
+  const [designation, setDesignation] = useState('');
+  const [orgPhone, setOrgPhone] = useState('');
 
   if (!isOpen) return null;
 
@@ -44,6 +44,10 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       alert('Password must be at least 6 characters.');
       return;
     }
+    if (isRegister && role === 'ngo' && orgPhone.trim().length !== 10) {
+      alert('Official NGO contact number must be exactly 10 digits.');
+      return;
+    }
 
     const effectiveNGO = selectedNGO === 'Other' ? (customNGO.trim() || 'Community Relief NGO') : selectedNGO;
 
@@ -53,37 +57,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       email: email.trim(),
       role: isRegister ? role : (email.includes('ngo') ? 'ngo' : 'citizen'),
       ngoName: role === 'ngo' ? effectiveNGO : undefined,
-      designation: role === 'ngo' ? (designation || 'Relief Coordinator') : undefined,
-      phone: orgPhone || ''
+      designation: role === 'ngo' ? (designation.trim() || 'Representative') : undefined,
+      phone: orgPhone ? orgPhone.trim() : ''
     };
 
     onLoginSuccess(user);
     onClose();
-  };
-
-  const handleQuickLogin = (demoRole) => {
-    if (demoRole === 'ngo') {
-      const ngoUser = {
-        id: 'usr_ngo_mysuru',
-        name: 'Suresh Kumar',
-        email: 'suresh@mysururelief.org',
-        role: 'ngo',
-        ngoName: 'Mysuru Relief & Food Care',
-        designation: 'Operations & Dispatch Lead',
-        phone: '9845123456'
-      };
-      onLoginSuccess(ngoUser);
-      onClose();
-    } else {
-      const citizenUser = {
-        id: 'usr_citizen_ramesh',
-        name: 'Ramesh Kannan',
-        email: 'ramesh.k@gmail.com',
-        role: 'citizen'
-      };
-      onLoginSuccess(citizenUser);
-      onClose();
-    }
   };
 
   return (
@@ -97,49 +76,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
           <p>Access your submitted requests and organization dashboards</p>
         </div>
 
-        {/* Quick Demo Sign-in Pills */}
-        <div style={{ backgroundColor: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
-          <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>
-            ⚡ 1-Click Demo Profiles:
-          </span>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('ngo')}
-              style={{
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #86efac',
-                color: '#166534',
-                padding: '6px 8px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                textAlign: 'left'
-              }}
-            >
-              🏢 NGO Rep (Mysuru)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('citizen')}
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #cbd5e1',
-                color: '#334155',
-                padding: '6px 8px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                textAlign: 'left'
-              }}
-            >
-              👤 Citizen Requester
-            </button>
-          </div>
-        </div>
-
         <form className="auth-form-content" onSubmit={handleSubmit}>
           {isRegister && (
             <div className="form-field">
@@ -147,7 +83,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
               <input
                 type="text"
                 className="input-control"
-                placeholder="Your full name"
+                placeholder="Enter your full name"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 required
@@ -235,7 +171,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     <input
                       type="text"
                       className="input-control"
-                      placeholder="e.g. Relief Coordinator, Field Lead"
+                      placeholder="e.g. Relief Coordinator, Field Lead, Director"
                       value={designation}
                       onChange={e => setDesignation(e.target.value)}
                       required
@@ -248,11 +184,16 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                       type="tel"
                       maxLength={10}
                       className="input-control"
-                      placeholder="10-digit phone number"
+                      placeholder="10-digit mobile number"
                       value={orgPhone}
                       onChange={e => setOrgPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       required
                     />
+                    {orgPhone && orgPhone.length > 0 && orgPhone.length < 10 && (
+                      <span style={{ fontSize: '11px', color: '#dc2626', marginTop: '3px', display: 'block' }}>
+                        {10 - orgPhone.length} more digit{10 - orgPhone.length === 1 ? '' : 's'} required
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -276,7 +217,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             <p>
               Don't have an account?{' '}
               <button type="button" className="auth-link-button" onClick={() => setIsRegister(true)}>
-                Register as NGO or Citizen
+                Register
               </button>
             </p>
           )}
