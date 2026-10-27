@@ -154,7 +154,16 @@ export default function RequestTracker({ requests, onUpdateStatus, onOpenReviewM
                           <span className="chip-score">{m.matchScore}%</span>
                           <span className="chip-name">{m.name}</span>
                           {isResolver && <span className="chip-badge-resolved">★ Resolved</span>}
-                          {m.contactPhone && <span className="chip-phone">({m.contactPhone})</span>}
+                          {m.contactPhone && (
+                            <a
+                              href={`tel:${m.contactPhone}`}
+                              className="chip-phone"
+                              style={{ color: 'inherit', textDecoration: 'none' }}
+                              title={`Call ${m.name}`}
+                            >
+                              ({m.contactPhone})
+                            </a>
+                          )}
                         </div>
                       );
                     })}

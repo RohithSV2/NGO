@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
 const CATEGORIES = [
+  'Hunger & Food Relief',
   'Education & Literacy',
   'Health & Family Welfare',
-  'Agriculture & Rural Development',
+  'Disaster Relief & Management',
   'Children & Youth Welfare',
   "Women's Development & Empowerment",
   'Aged/Elderly Care',
-  'Disaster Relief & Management',
-  'Animal Husbandry & Welfare',
   'Drinking Water & Sanitation',
+  'Agriculture & Rural Development',
+  'Animal Husbandry & Welfare',
   'General Aid'
 ];
 
@@ -24,7 +25,7 @@ const URGENCIES = [
 export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker }) {
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Education & Literacy',
+    category: 'Hunger & Food Relief',
     urgency: 'Medium',
     city: '',
     state: '',
@@ -119,7 +120,9 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
                   <h5>{ngo.name}</h5>
                   <p>{ngo.category} &bull; {ngo.city}</p>
                   {ngo.contactPhone && (
-                    <span className="matched-phone">📞 {ngo.contactPhone}</span>
+                    <span className="matched-phone">
+                      📞 <a href={`tel:${ngo.contactPhone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{ngo.contactPhone}</a>
+                    </span>
                   )}
                 </div>
               ))}

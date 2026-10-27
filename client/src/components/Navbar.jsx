@@ -15,7 +15,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
         <div className="navbar-brand" onClick={() => setActiveTab('overview')} role="button" tabIndex={0}>
           <div className="brand-badge-icon">🌿</div>
           <div className="brand-info">
-            <span className="brand-title">ReliefNet</span>
+            <span className="brand-title">AidConnect</span>
             <span className="brand-tagline">NGO Humanitarian Network</span>
           </div>
         </div>

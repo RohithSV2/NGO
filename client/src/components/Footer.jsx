@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="footer-brand-col">
           <div className="footer-brand-title">
             <span className="footer-leaf">🌿</span>
-            <strong>ReliefNet</strong>
+            <strong>AidConnect</strong>
           </div>
           <p className="footer-brand-desc">
             A nationwide humanitarian coordination and emergency aid matching platform
@@ -46,7 +46,7 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom-strip">
-        <span>&copy; {new Date().getFullYear()} ReliefNet Humanitarian Aid Platform</span>
+        <span>&copy; {new Date().getFullYear()} AidConnect Humanitarian Aid Platform</span>
         <span>Verified NGO Relief Network</span>
       </div>
     </footer>

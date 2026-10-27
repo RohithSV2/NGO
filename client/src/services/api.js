@@ -33,15 +33,37 @@ export const clientSideMatch = (requestData, topK = 5) => {
   const title = (requestData.title || '').toLowerCase();
   const desc = (requestData.description || '').toLowerCase();
   const text = `${title} ${desc}`;
-  const reqCategory = (requestData.category || '').toLowerCase();
-  const reqCity = (requestData.city || '').toLowerCase();
+  let reqCategory = (requestData.category || '').toLowerCase();
+  let reqCity = (requestData.city || '').toLowerCase();
   const reqUrgency = requestData.urgency || 'Medium';
+
+  // Natural Language city detection if not explicitly set or mentioned in prompt
+  if (!reqCity) {
+    if (text.includes('mysuru') || text.includes('mysore')) reqCity = 'mysuru';
+    else if (text.includes('bengaluru') || text.includes('bangalore')) reqCity = 'bengaluru';
+    else if (text.includes('delhi')) reqCity = 'delhi';
+    else if (text.includes('mumbai')) reqCity = 'mumbai';
+  }
+
+  // Natural Language category inference if general aid or food/education mentioned
+  if (!reqCategory || reqCategory === 'general aid' || reqCategory.includes('general')) {
+    if (text.includes('food') || text.includes('meal') || text.includes('ration') || text.includes('hunger') || text.includes('starv')) {
+      reqCategory = 'hunger & food';
+    } else if (text.includes('education') || text.includes('school') || text.includes('book') || text.includes('student') || text.includes('tuition')) {
+      reqCategory = 'education';
+    } else if (text.includes('blood') || text.includes('medic') || text.includes('hospital') || text.includes('health') || text.includes('oxygen')) {
+      reqCategory = 'health & family welfare';
+    } else if (text.includes('flood') || text.includes('earthquake') || text.includes('disaster') || text.includes('cyclone')) {
+      reqCategory = 'disaster relief & management';
+    }
+  }
 
   const scored = ngos.map(ngo => {
     let textSim = 0;
     const sectorsStr = Array.isArray(ngo.sectors) ? ngo.sectors.join(' ') : (ngo.sectors || '');
     const helpsStr = Array.isArray(ngo.helps) ? ngo.helps.join(' ') : (ngo.helps || '');
-    const ngoSearchCorpus = `${ngo.name} ${ngo.category} ${sectorsStr} ${helpsStr} ${ngo.location} ${ngo.description}`.toLowerCase();
+    const areasStr = Array.isArray(ngo.areas_served) ? ngo.areas_served.join(' ') : '';
+    const ngoSearchCorpus = `${ngo.name} ${ngo.category} ${sectorsStr} ${helpsStr} ${areasStr} ${ngo.keywords || ''} ${ngo.location || ''} ${ngo.city || ''} ${ngo.state || ''} ${ngo.description || ''}`.toLowerCase();
 
     const words = text.split(/\W+/).filter(w => w.length > 2);
     if (words.length > 0) {
@@ -49,33 +71,47 @@ export const clientSideMatch = (requestData, topK = 5) => {
       textSim = hits / words.length;
     }
 
-    let catMatch = 0.3;
+    let catMatch = 0.25;
     if (reqCategory && reqCategory !== 'general aid') {
-      const inCat = (ngo.category || '').toLowerCase().includes(reqCategory) || reqCategory.includes((ngo.category || '').toLowerCase());
+      const ngoCat = (ngo.category || '').toLowerCase();
+      const inCat = ngoCat.includes(reqCategory) || reqCategory.includes(ngoCat);
+      const isFood = (reqCategory.includes('food') || reqCategory.includes('hunger')) && (ngoCat.includes('food') || ngoCat.includes('hunger'));
+      const isEdu = reqCategory.includes('education') && ngoCat.includes('education');
+      const isHealth = (reqCategory.includes('health') || reqCategory.includes('medic')) && (ngoCat.includes('health') || ngoCat.includes('medic'));
+      const isDisaster = reqCategory.includes('disaster') && ngoCat.includes('disaster');
+
       const inSectors = Array.isArray(ngo.sectors) && ngo.sectors.some(s => s.toLowerCase().includes(reqCategory) || reqCategory.includes(s.toLowerCase()));
       const inHelps = Array.isArray(ngo.helps) && ngo.helps.some(h => h.toLowerCase().includes(reqCategory) || reqCategory.includes(h.toLowerCase()));
-      if (inCat || inSectors) {
+
+      if (inCat || isFood || isEdu || isHealth || isDisaster || inSectors) {
         catMatch = 1.0;
       } else if (inHelps) {
         catMatch = 0.85;
+      } else {
+        catMatch = 0.15;
       }
     }
 
     let locMatch = 0.5;
     if (reqCity) {
-      const inCity = (ngo.city || '').toLowerCase().includes(reqCity);
+      const inCity = (ngo.city || '').toLowerCase().includes(reqCity) || reqCity.includes((ngo.city || '').toLowerCase());
       const inLoc = (ngo.location || '').toLowerCase().includes(reqCity);
-      const inAreas = Array.isArray(ngo.areas_served) && ngo.areas_served.some(a => a.toLowerCase().includes(reqCity));
+      const inAreas = Array.isArray(ngo.areas_served) && ngo.areas_served.some(a => a.toLowerCase().includes(reqCity) || reqCity.includes(a.toLowerCase()));
+      const isKarnataka = (reqCity.includes('mysur') || reqCity.includes('mysore') || reqCity.includes('bengalur') || reqCity.includes('bangalore')) &&
+        ((ngo.state || '').toLowerCase().includes('karnataka') || (ngo.city || '').toLowerCase().includes('bengaluru'));
+
       if (inCity || inLoc || inAreas) {
         locMatch = 1.0;
+      } else if (isKarnataka) {
+        locMatch = 0.85;
       } else {
-        locMatch = 0.2;
+        locMatch = 0.15;
       }
     }
 
     const ratingFactor = (ngo.rating || 4.7) / 5.0;
     const handlesUrgency = (ngo.urgencyLevelsHandled || ngo.urgency_levels_handled || []).includes(reqUrgency);
-    const urgencyBoost = handlesUrgency ? 1.15 : (reqUrgency === 'Critical' ? 0.85 : 1.0);
+    const urgencyBoost = handlesUrgency ? 1.20 : 0.82;
 
     const baseScore = (0.50 * textSim) + (0.25 * catMatch) + (0.15 * locMatch) + (0.10 * ratingFactor);
     const finalScore = Math.min(baseScore * urgencyBoost, 1.0);

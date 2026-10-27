@@ -29,7 +29,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
         <div className="auth-card-header">
           <div className="auth-leaf-icon">🌿</div>
-          <h3>{isRegister ? 'Create an Account' : 'Sign in to ReliefNet'}</h3>
+          <h3>{isRegister ? 'Create an Account' : 'Sign in to AidConnect'}</h3>
           <p>Access your submitted requests and organization dashboards</p>
         </div>
 
