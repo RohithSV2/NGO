@@ -8,7 +8,6 @@ import sys
 import json
 import os
 
-# Adjust path to enable absolute imports from ml.src
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
@@ -45,38 +44,48 @@ class NGOMatcher:
             # 1. NLP Content Cosine Similarity (0.0 to 1.0)
             text_sim = cosine_similarity(req_vector, self.ngo_vectors[idx])
 
-            # 2. Category Matching Score (0.0 to 1.0)
-            cat_match = 0.0
-            req_cat = parsed['category'].lower()
-            ngo_cat = ngo['category'].lower()
-            ngo_sub = ngo['subcategories'].lower()
+            # 2. Category / Sector Matching Score (0.0 to 1.0)
+            cat_match = 0.3
+            req_cat = (parsed['category'] or '').lower().strip()
+            ngo_cat = (ngo.get('category') or '').lower().strip()
+            ngo_sectors = [s.lower() for s in ngo.get('sectors', [])]
+            ngo_helps = [h.lower() for h in ngo.get('helps', [])]
 
-            if req_cat in ngo_cat or ngo_cat in req_cat:
-                cat_match = 1.0
-            elif any(token in ngo_sub or token in ngo_cat for token in parsed['tokens']):
-                cat_match = 0.75
+            if req_cat and req_cat != 'general aid':
+                if req_cat in ngo_cat or ngo_cat in req_cat or any(req_cat in s or s in req_cat for s in ngo_sectors):
+                    cat_match = 1.0
+                elif any(req_cat in h or h in req_cat for h in ngo_helps):
+                    cat_match = 0.85
+                elif any(token in ngo_cat or any(token in s for s in ngo_sectors) for token in parsed['tokens']):
+                    cat_match = 0.70
 
             # 3. Location Matching Score (0.0 to 1.0)
-            loc_match = 0.0
+            loc_match = 0.5  # Neutral if request has no specified city
             req_city = (parsed['city'] or '').lower().strip()
-            ngo_city = ngo['city'].lower().strip()
-            if req_city and req_city in ngo_city:
-                loc_match = 1.0
-            elif not req_city:
-                loc_match = 0.5  # Neutral if request has no specified city
+            if req_city:
+                ngo_city = (ngo.get('city') or '').lower().strip()
+                ngo_loc = (ngo.get('location') or '').lower().strip()
+                ngo_areas = [a.lower() for a in ngo.get('areas_served', [])]
 
-            # 4. Rating Factor (scaled 0.0 to 1.0 from rating out of 5)
-            rating_factor = min(ngo['rating'] / 5.0, 1.0)
+                if req_city in ngo_city or req_city in ngo_loc or any(req_city in a for a in ngo_areas):
+                    loc_match = 1.0
+                else:
+                    loc_match = 0.2
+
+            # 4. Rating Factor (scaled 0.0 to 1.0 from rating out of 5, neutral 0.8 if unrated)
+            rating_val = ngo.get('rating')
+            rating_factor = min(float(rating_val) / 5.0, 1.0) if rating_val is not None else 0.8
 
             # 5. Urgency Capability Match
+            urgency_levels = ngo.get('urgency_levels_handled', ['Low', 'Medium', 'High', 'Critical'])
             urgency_boost = 1.0
-            if parsed['urgency'] in ngo['urgency_levels_handled']:
+            if parsed['urgency'] in urgency_levels:
                 urgency_boost = 1.15
-            elif parsed['urgency'] == 'Critical' and 'Critical' not in ngo['urgency_levels_handled']:
+            elif parsed['urgency'] == 'Critical' and 'Critical' not in urgency_levels:
                 urgency_boost = 0.85
 
             # Weighted Hybrid Score
-            # 50% Text similarity + 25% Category match + 15% Location match + 10% Rating
+            # 50% Text similarity + 25% Category/Sector match + 15% Location match + 10% Rating
             base_score = (
                 (0.50 * text_sim) +
                 (0.25 * cat_match) +
@@ -87,24 +96,30 @@ class NGOMatcher:
             final_score = min(base_score * urgency_boost, 1.0)
             confidence_pct = round(final_score * 100, 1)
 
-            # Keep top matches with relevant affinity
             scored_results.append({
-                'ngo_id': ngo['id'],
+                'ngo_id': ngo.get('id', idx + 1),
                 'name': ngo['name'],
-                'category': ngo['category'],
-                'city': ngo['city'],
-                'state': ngo['state'],
-                'rating': ngo['rating'],
-                'contact_phone': ngo['contact_phone'],
-                'contact_email': ngo['contact_email'],
-                'website': ngo['website'],
-                'description': ngo['description'],
+                'registration_number': ngo.get('registration_number', ''),
+                'category': ngo.get('category', 'General Aid'),
+                'sectors': ngo.get('sectors', []),
+                'helps': ngo.get('helps', []),
+                'services': ngo.get('services', []),
+                'areas_served': ngo.get('areas_served', []),
+                'city': ngo.get('city', ''),
+                'state': ngo.get('state', 'Karnataka'),
+                'location': ngo.get('location', ''),
+                'rating': ngo.get('rating'),
+                'contact_phone': ngo.get('contact_phone', ''),
+                'contact_email': ngo.get('contact_email', ''),
+                'website': ngo.get('website', ''),
+                'social_media': ngo.get('social_media', {}),
+                'description': ngo.get('description', ''),
                 'match_score': confidence_pct,
                 'breakdown': {
                     'text_similarity': round(text_sim * 100, 1),
                     'category_match': round(cat_match * 100, 1),
                     'location_match': round(loc_match * 100, 1),
-                    'urgency_handling': parsed['urgency'] in ngo['urgency_levels_handled']
+                    'urgency_handling': parsed['urgency'] in urgency_levels
                 }
             })
 
@@ -124,10 +139,10 @@ if __name__ == '__main__':
     else:
         # Default test case
         data = {
-            'title': 'Severe floods in Assam',
-            'description': 'Over 80 families displaced by heavy rains without drinking water, dry food, or dry clothes.',
-            'category': 'Disaster Relief',
-            'city': ''
+            'title': 'School books and education aid for rural students',
+            'description': 'Underprivileged children in Mysore needing books, tuition, and literacy guidance.',
+            'category': 'Education & Literacy',
+            'city': 'Mysore'
         }
 
     matches = matcher.match(data, top_k=5)

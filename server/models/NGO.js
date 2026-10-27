@@ -7,57 +7,63 @@ const ngoSchema = new mongoose.Schema(
       required: [true, 'NGO name is required'],
       trim: true
     },
-    category: {
+    registration_number: {
       type: String,
-      required: [true, 'Primary category is required'],
+      default: '',
       trim: true
     },
-    subcategories: {
-      type: [String],
-      default: []
+    location: {
+      type: String,
+      default: '',
+      trim: true
     },
     city: {
       type: String,
-      required: [true, 'City is required'],
+      default: '',
       trim: true
     },
     state: {
       type: String,
-      default: ''
+      default: 'Karnataka',
+      trim: true
     },
     address: {
       type: String,
-      default: ''
+      default: '',
+      trim: true
     },
-    description: {
+    category: {
       type: String,
-      required: [true, 'Description is required']
+      default: 'General Aid',
+      trim: true
     },
-    keywords: {
+    sectors: {
       type: [String],
       default: []
     },
-    capacity: {
-      type: Number,
-      default: 1000
-    },
-    urgencyLevelsHandled: {
+    helps: {
       type: [String],
-      default: ['Low', 'Medium', 'High']
+      default: []
     },
-    verified: {
-      type: Boolean,
-      default: true
+    services: {
+      type: [String],
+      default: []
     },
-    rating: {
-      type: Number,
-      default: 4.5,
-      min: 1,
-      max: 5
+    areas_served: {
+      type: [String],
+      default: []
     },
-    ratingCount: {
-      type: Number,
-      default: 1
+    description: {
+      type: String,
+      default: ''
+    },
+    phone: {
+      type: [String],
+      default: []
+    },
+    email: {
+      type: [String],
+      default: []
     },
     contactPhone: {
       type: String,
@@ -71,6 +77,41 @@ const ngoSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    social_media: {
+      facebook: { type: String, default: '' },
+      instagram: { type: String, default: '' },
+      linkedin: { type: String, default: '' },
+      twitter: { type: String, default: '' },
+      youtube: { type: String, default: '' }
+    },
+    sources: {
+      type: [String],
+      default: []
+    },
+    keywords: {
+      type: [String],
+      default: []
+    },
+    capacity: {
+      type: Number,
+      default: 1000
+    },
+    urgencyLevelsHandled: {
+      type: [String],
+      default: ['Low', 'Medium', 'High', 'Critical']
+    },
+    verified: {
+      type: Boolean,
+      default: true
+    },
+    rating: {
+      type: Number,
+      default: null
+    },
+    ratingCount: {
+      type: Number,
+      default: 0
+    },
     activeCases: {
       type: Number,
       default: 0
@@ -83,7 +124,21 @@ const ngoSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Text index for search
-ngoSchema.index({ name: 'text', description: 'text', keywords: 'text', category: 'text' });
+// Comprehensive Text index for search across all new and existing fields
+ngoSchema.index({
+  name: 'text',
+  description: 'text',
+  sectors: 'text',
+  helps: 'text',
+  services: 'text',
+  location: 'text',
+  category: 'text',
+  keywords: 'text'
+});
+
+ngoSchema.index({ city: 1 });
+ngoSchema.index({ category: 1 });
+ngoSchema.index({ sectors: 1 });
+ngoSchema.index({ registration_number: 1 });
 
 module.exports = mongoose.model('NGO', ngoSchema);

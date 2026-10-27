@@ -1,9 +1,9 @@
 import { INITIAL_NGOS, INITIAL_REQUESTS, INITIAL_RATINGS } from '../data/mockData';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (
-  typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? '/api'
-    : 'http://localhost:5000/api'
+  typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000/api'
+    : '/api'
 );
 
 // Local storage keys
@@ -15,61 +15,92 @@ const STORAGE_USER = 'ngo_app_user';
 if (!localStorage.getItem(STORAGE_REQUESTS)) {
   localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(INITIAL_REQUESTS));
 }
-if (!localStorage.getItem(STORAGE_RATINGS)) {
-  localStorage.setItem(STORAGE_RATINGS, JSON.stringify(INITIAL_RATINGS));
+// Initialize and sanitize localStorage: remove any legacy mock reviews
+try {
+  const existingRatings = JSON.parse(localStorage.getItem(STORAGE_RATINGS) || '[]');
+  const cleanedRatings = existingRatings.filter(r =>
+    !['rate_1', 'rate_2', 'rate_3'].includes(r._id) &&
+    !['Aditya Verma', 'Sunita Joshi', 'Pooja Reddy'].includes(r.userName)
+  );
+  localStorage.setItem(STORAGE_RATINGS, JSON.stringify(cleanedRatings));
+} catch (e) {
+  localStorage.setItem(STORAGE_RATINGS, JSON.stringify([]));
 }
 
-// Client-side NLP & Heuristic matcher fallback
+// Client-side NLP & Heuristic matcher fallback with full schema intelligence
 export const clientSideMatch = (requestData, topK = 5) => {
   const ngos = INITIAL_NGOS;
-  const text = `${requestData.title || ''} ${requestData.description || ''}`.toLowerCase();
+  const title = (requestData.title || '').toLowerCase();
+  const desc = (requestData.description || '').toLowerCase();
+  const text = `${title} ${desc}`;
   const reqCategory = (requestData.category || '').toLowerCase();
   const reqCity = (requestData.city || '').toLowerCase();
   const reqUrgency = requestData.urgency || 'Medium';
 
   const scored = ngos.map(ngo => {
     let textSim = 0;
-    const ngoText = `${ngo.name} ${ngo.category} ${ngo.description} ${ngo.keywords}`.toLowerCase();
-    const words = text.split(/\W+/).filter(w => w.length > 3);
+    const sectorsStr = Array.isArray(ngo.sectors) ? ngo.sectors.join(' ') : (ngo.sectors || '');
+    const helpsStr = Array.isArray(ngo.helps) ? ngo.helps.join(' ') : (ngo.helps || '');
+    const ngoSearchCorpus = `${ngo.name} ${ngo.category} ${sectorsStr} ${helpsStr} ${ngo.location} ${ngo.description}`.toLowerCase();
+
+    const words = text.split(/\W+/).filter(w => w.length > 2);
     if (words.length > 0) {
-      const hits = words.filter(w => ngoText.includes(w)).length;
+      const hits = words.filter(w => ngoSearchCorpus.includes(w)).length;
       textSim = hits / words.length;
     }
 
-    let catMatch = 0;
+    let catMatch = 0.3;
     if (reqCategory && reqCategory !== 'general aid') {
-      if (ngo.category.toLowerCase().includes(reqCategory) || reqCategory.includes(ngo.category.toLowerCase())) {
+      const inCat = (ngo.category || '').toLowerCase().includes(reqCategory) || reqCategory.includes((ngo.category || '').toLowerCase());
+      const inSectors = Array.isArray(ngo.sectors) && ngo.sectors.some(s => s.toLowerCase().includes(reqCategory) || reqCategory.includes(s.toLowerCase()));
+      const inHelps = Array.isArray(ngo.helps) && ngo.helps.some(h => h.toLowerCase().includes(reqCategory) || reqCategory.includes(h.toLowerCase()));
+      if (inCat || inSectors) {
         catMatch = 1.0;
-      } else if (ngo.subcategories && ngo.subcategories.toLowerCase().includes(reqCategory)) {
-        catMatch = 0.75;
+      } else if (inHelps) {
+        catMatch = 0.85;
       }
-    } else {
-      catMatch = 0.5;
     }
 
     let locMatch = 0.5;
-    if (reqCity && ngo.city.toLowerCase().includes(reqCity)) {
-      locMatch = 1.0;
+    if (reqCity) {
+      const inCity = (ngo.city || '').toLowerCase().includes(reqCity);
+      const inLoc = (ngo.location || '').toLowerCase().includes(reqCity);
+      const inAreas = Array.isArray(ngo.areas_served) && ngo.areas_served.some(a => a.toLowerCase().includes(reqCity));
+      if (inCity || inLoc || inAreas) {
+        locMatch = 1.0;
+      } else {
+        locMatch = 0.2;
+      }
     }
 
-    const ratingFactor = (ngo.rating || 4.5) / 5.0;
-    const handlesUrgency = (ngo.urgency_levels_handled || []).includes(reqUrgency);
+    const ratingFactor = (ngo.rating || 4.7) / 5.0;
+    const handlesUrgency = (ngo.urgencyLevelsHandled || ngo.urgency_levels_handled || []).includes(reqUrgency);
     const urgencyBoost = handlesUrgency ? 1.15 : (reqUrgency === 'Critical' ? 0.85 : 1.0);
 
     const baseScore = (0.50 * textSim) + (0.25 * catMatch) + (0.15 * locMatch) + (0.10 * ratingFactor);
     const finalScore = Math.min(baseScore * urgencyBoost, 1.0);
     const confidencePct = Math.round(finalScore * 1000) / 10;
 
+    const contactPhone = ngo.contactPhone || ngo.contact_phone || (Array.isArray(ngo.phone) ? ngo.phone[0] : ngo.phone) || '';
+    const contactEmail = ngo.contactEmail || ngo.contact_email || (Array.isArray(ngo.email) ? ngo.email[0] : ngo.email) || '';
+
     return {
-      ngo_id: ngo.ngo_id,
+      ngo_id: ngo.ngo_id || ngo._id,
       name: ngo.name,
+      registration_number: ngo.registration_number || '',
       category: ngo.category,
+      sectors: ngo.sectors || [],
+      helps: ngo.helps || [],
       city: ngo.city,
       state: ngo.state,
+      location: ngo.location || `${ngo.city}, ${ngo.state}`,
       rating: ngo.rating,
-      contact_phone: ngo.contact_phone,
-      contact_email: ngo.contact_email,
+      contact_phone: contactPhone,
+      contact_email: contactEmail,
+      contactPhone: contactPhone,
+      contactEmail: contactEmail,
       website: ngo.website,
+      social_media: ngo.social_media || {},
       description: ngo.description,
       match_score: confidencePct,
       breakdown: {
@@ -86,7 +117,7 @@ export const clientSideMatch = (requestData, topK = 5) => {
 };
 
 export const api = {
-  // Fetch NGOs
+  // Fetch NGOs from backend API or local fallback
   async getNGOs(filters = {}) {
     try {
       const params = new URLSearchParams();
@@ -105,18 +136,33 @@ export const api = {
 
     let list = [...INITIAL_NGOS];
     if (filters.category && filters.category !== 'All') {
-      list = list.filter(n => n.category.toLowerCase().includes(filters.category.toLowerCase()));
+      const cat = filters.category.toLowerCase();
+      list = list.filter(n => {
+        const inCat = (n.category || '').toLowerCase().includes(cat);
+        const inSectors = Array.isArray(n.sectors) && n.sectors.some(s => s.toLowerCase().includes(cat));
+        const inHelps = Array.isArray(n.helps) && n.helps.some(h => h.toLowerCase().includes(cat));
+        return inCat || inSectors || inHelps;
+      });
     }
     if (filters.city) {
-      list = list.filter(n => n.city.toLowerCase().includes(filters.city.toLowerCase()));
+      const c = filters.city.toLowerCase();
+      list = list.filter(n => {
+        const inCity = (n.city || '').toLowerCase().includes(c);
+        const inLoc = (n.location || '').toLowerCase().includes(c);
+        const inAreas = Array.isArray(n.areas_served) && n.areas_served.some(a => a.toLowerCase().includes(c));
+        return inCity || inLoc || inAreas;
+      });
     }
     if (filters.search) {
       const s = filters.search.toLowerCase();
-      list = list.filter(n =>
-        n.name.toLowerCase().includes(s) ||
-        n.description.toLowerCase().includes(s) ||
-        n.category.toLowerCase().includes(s)
-      );
+      list = list.filter(n => {
+        const nameMatch = (n.name || '').toLowerCase().includes(s);
+        const descMatch = (n.description || '').toLowerCase().includes(s);
+        const catMatch = (n.category || '').toLowerCase().includes(s);
+        const locMatch = (n.location || '').toLowerCase().includes(s);
+        const regMatch = (n.registration_number || '').toLowerCase().includes(s);
+        return nameMatch || descMatch || catMatch || locMatch || regMatch;
+      });
     }
     return list;
   },
@@ -147,8 +193,8 @@ export const api = {
         name: m.name,
         category: m.category,
         city: m.city,
-        contactPhone: m.contact_phone,
-        contactEmail: m.contact_email,
+        contactPhone: m.contact_phone || m.contactPhone || '',
+        contactEmail: m.contact_email || m.contactEmail || '',
         matchScore: m.match_score,
         breakdown: m.breakdown
       })),
@@ -231,10 +277,15 @@ export const api = {
       });
       if (res.ok) {
         const json = await res.json();
-        return json.data;
+        if (json.data) {
+          const current = JSON.parse(localStorage.getItem(STORAGE_RATINGS) || '[]');
+          const filtered = current.filter(r => r._id !== json.data._id);
+          localStorage.setItem(STORAGE_RATINGS, JSON.stringify([json.data, ...filtered]));
+          return json.data;
+        }
       }
     } catch (e) {
-      // Offline fallback
+      console.warn('API rating submission error, falling back:', e);
     }
 
     const newRating = {
@@ -251,15 +302,19 @@ export const api = {
   // Get ratings for NGO or all
   async getRatings(ngoId = null) {
     try {
-      if (ngoId) {
-        const res = await fetch(`${API_BASE}/ratings/ngo/${ngoId}`);
-        if (res.ok) {
-          const json = await res.json();
+      const url = ngoId ? `${API_BASE}/ratings/ngo/${ngoId}` : `${API_BASE}/ratings`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.data)) {
+          if (!ngoId) {
+            localStorage.setItem(STORAGE_RATINGS, JSON.stringify(json.data));
+          }
           return json.data;
         }
       }
     } catch (e) {
-      // Offline fallback
+      console.warn('API fetch ratings error, using cache:', e);
     }
     const all = JSON.parse(localStorage.getItem(STORAGE_RATINGS) || '[]');
     if (ngoId) return all.filter(r => String(r.ngoId) === String(ngoId));

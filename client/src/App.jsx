@@ -55,7 +55,18 @@ function App() {
 
   const handleAddRating = async (ratingData) => {
     const created = await api.submitRating(ratingData);
-    setRatings(prev => [created, ...prev]);
+    if (created) {
+      setRatings(prev => [created, ...prev]);
+    }
+    // Re-fetch NGOs dynamically from MongoDB so the new rating immediately reflects everywhere
+    try {
+      const refreshedNGOs = await api.getNGOs();
+      if (refreshedNGOs && refreshedNGOs.length > 0) {
+        setNgos(refreshedNGOs);
+      }
+    } catch (err) {
+      console.warn('Could not refresh NGOs dynamically:', err);
+    }
   };
 
   const handleDirectRequest = (targetNGO) => {
@@ -71,7 +82,7 @@ function App() {
   const handleSaveResolutionReview = async () => {
     if (!reviewModalTarget) return;
     await handleAddRating({
-      ngoId: String(reviewModalTarget.ngo.ngoId || reviewModalTarget.ngo.ngo_id || '1'),
+      ngoId: String(reviewModalTarget.ngo._id || reviewModalTarget.ngo.ngoId || reviewModalTarget.ngo.ngo_id || ''),
       ngoName: reviewModalTarget.ngo.name,
       userName: user ? user.name : 'Verified Citizen',
       rating: reviewScore,
@@ -108,7 +119,7 @@ function App() {
             <div className="featured-ngos-section">
               <div className="section-divider"></div>
               <NGODirectory
-                ngos={ngos.slice(0, 6)}
+                ngos={ngos}
                 onDirectRequest={handleDirectRequest}
               />
             </div>

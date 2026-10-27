@@ -7,17 +7,38 @@ const { loadCSVNGOs } = require('../services/mlService');
 // @access  Public
 exports.getAllNGOs = async (req, res) => {
   try {
-    const { category, city, search, verified } = req.query;
+    const { category, sector, city, location, search, verified } = req.query;
 
     if (isDBConnected()) {
       let query = {};
 
-      if (category && category !== 'All') {
-        query.category = { $regex: new RegExp(category, 'i') };
+      const catFilter = category || sector;
+      if (catFilter && catFilter !== 'All') {
+        const catRegex = new RegExp(catFilter, 'i');
+        query.$or = [
+          { category: catRegex },
+          { sectors: catRegex },
+          { helps: catRegex }
+        ];
       }
 
-      if (city) {
-        query.city = { $regex: new RegExp(city, 'i') };
+      const locFilter = city || location;
+      if (locFilter && locFilter !== 'All') {
+        const locRegex = new RegExp(locFilter, 'i');
+        const locConditions = [
+          { city: locRegex },
+          { location: locRegex },
+          { areas_served: locRegex }
+        ];
+        if (query.$or) {
+          query.$and = [
+            { $or: query.$or },
+            { $or: locConditions }
+          ];
+          delete query.$or;
+        } else {
+          query.$or = locConditions;
+        }
       }
 
       if (verified !== undefined) {
@@ -25,36 +46,32 @@ exports.getAllNGOs = async (req, res) => {
       }
 
       if (search) {
-        query.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } },
-          { category: { $regex: search, $options: 'i' } }
+        const sRegex = new RegExp(search, 'i');
+        const searchConditions = [
+          { name: sRegex },
+          { description: sRegex },
+          { category: sRegex },
+          { sectors: sRegex },
+          { helps: sRegex },
+          { services: sRegex },
+          { location: sRegex },
+          { registration_number: sRegex }
         ];
+
+        if (query.$and) {
+          query.$and.push({ $or: searchConditions });
+        } else if (query.$or) {
+          query.$and = [
+            { $or: query.$or },
+            { $or: searchConditions }
+          ];
+          delete query.$or;
+        } else {
+          query.$or = searchConditions;
+        }
       }
 
-      let ngos = await NGO.find(query).sort({ rating: -1 });
-
-      // If DB has no NGOs yet, seed from CSV
-      if (ngos.length === 0 && !category && !city && !search) {
-        const csvNGOs = loadCSVNGOs();
-        const formatted = csvNGOs.map(n => ({
-          name: n.name,
-          category: n.category,
-          subcategories: (n.subcategories || '').split(',').map(s => s.trim()),
-          city: n.city,
-          state: n.state,
-          description: n.description,
-          keywords: (n.keywords || '').split(' '),
-          rating: n.rating,
-          contactPhone: n.contact_phone,
-          contactEmail: n.contact_email,
-          website: n.website,
-          urgencyLevelsHandled: n.urgency_levels_handled,
-          verified: true
-        }));
-        await NGO.insertMany(formatted);
-        ngos = await NGO.find(query).sort({ rating: -1 });
-      }
+      let ngos = await NGO.find(query).sort({ rating: -1, name: 1 });
 
       return res.status(200).json({
         success: true,
@@ -62,24 +79,45 @@ exports.getAllNGOs = async (req, res) => {
         data: ngos
       });
     } else {
-      // Offline / CSV in-memory fallback
+      // Offline / in-memory fallback
       let list = loadCSVNGOs();
 
-      if (category && category !== 'All') {
-        list = list.filter(n => n.category.toLowerCase().includes(category.toLowerCase()));
+      const catFilter = (category || sector || '').toLowerCase();
+      if (catFilter && catFilter !== 'all') {
+        list = list.filter(n => {
+          const inCat = (n.category || '').toLowerCase().includes(catFilter);
+          const inSectors = Array.isArray(n.sectors)
+            ? n.sectors.some(s => s.toLowerCase().includes(catFilter))
+            : (n.sectors || '').toLowerCase().includes(catFilter);
+          const inHelps = Array.isArray(n.helps)
+            ? n.helps.some(h => h.toLowerCase().includes(catFilter))
+            : (n.helps || '').toLowerCase().includes(catFilter);
+          return inCat || inSectors || inHelps;
+        });
       }
 
-      if (city) {
-        list = list.filter(n => n.city.toLowerCase().includes(city.toLowerCase()));
+      const locFilter = (city || location || '').toLowerCase();
+      if (locFilter && locFilter !== 'all') {
+        list = list.filter(n => {
+          const inCity = (n.city || '').toLowerCase().includes(locFilter);
+          const inLoc = (n.location || '').toLowerCase().includes(locFilter);
+          const inAreas = Array.isArray(n.areas_served)
+            ? n.areas_served.some(a => a.toLowerCase().includes(locFilter))
+            : (n.areas_served || '').toLowerCase().includes(locFilter);
+          return inCity || inLoc || inAreas;
+        });
       }
 
       if (search) {
         const s = search.toLowerCase();
-        list = list.filter(n =>
-          n.name.toLowerCase().includes(s) ||
-          n.description.toLowerCase().includes(s) ||
-          n.category.toLowerCase().includes(s)
-        );
+        list = list.filter(n => {
+          const nameMatch = (n.name || '').toLowerCase().includes(s);
+          const descMatch = (n.description || '').toLowerCase().includes(s);
+          const catMatch = (n.category || '').toLowerCase().includes(s);
+          const locMatch = (n.location || '').toLowerCase().includes(s);
+          const regMatch = (n.registration_number || '').toLowerCase().includes(s);
+          return nameMatch || descMatch || catMatch || locMatch || regMatch;
+        });
       }
 
       return res.status(200).json({
@@ -96,7 +134,7 @@ exports.getAllNGOs = async (req, res) => {
   }
 };
 
-// @desc    Get single NGO by ID
+// @desc    Get single NGO by ID or registration number
 // @route   GET /api/ngos/:id
 // @access  Public
 exports.getNGOById = async (req, res) => {
@@ -104,14 +142,29 @@ exports.getNGOById = async (req, res) => {
     const { id } = req.params;
 
     if (isDBConnected()) {
-      const ngo = await NGO.findById(id);
+      let ngo = null;
+      if (id.match(/^[0-9a-fA-F]{24}$/)) {
+        ngo = await NGO.findById(id);
+      }
+      if (!ngo) {
+        ngo = await NGO.findOne({
+          $or: [
+            { registration_number: id },
+            { name: new RegExp(`^${id}$`, 'i') }
+          ]
+        });
+      }
       if (!ngo) {
         return res.status(404).json({ success: false, message: 'NGO not found' });
       }
       return res.status(200).json({ success: true, data: ngo });
     } else {
       const list = loadCSVNGOs();
-      const found = list.find(n => String(n.ngo_id) === String(id) || n.name.toLowerCase() === id.toLowerCase());
+      const found = list.find(n =>
+        String(n.ngo_id) === String(id) ||
+        String(n.registration_number) === String(id) ||
+        (n.name || '').toLowerCase() === id.toLowerCase()
+      );
       if (!found) {
         return res.status(404).json({ success: false, message: 'NGO not found' });
       }
@@ -138,7 +191,7 @@ exports.createNGO = async (req, res) => {
         ngo_id: Date.now(),
         ...req.body,
         verified: true,
-        rating: 4.5
+        rating: 4.7
       };
       return res.status(201).json({ success: true, data: newNGO });
     }
@@ -150,30 +203,15 @@ exports.createNGO = async (req, res) => {
   }
 };
 
-// @desc    Seed NGOs from CSV
+// @desc    Seed NGOs from CSV or dataset
 // @route   POST /api/ngos/seed
 // @access  Public
 exports.seedNGOs = async (req, res) => {
   try {
     const list = loadCSVNGOs();
-    if (isDBConnected()) {
+    if (isDBConnected() && list.length > 0) {
       await NGO.deleteMany({});
-      const formatted = list.map(n => ({
-        name: n.name,
-        category: n.category,
-        subcategories: (n.subcategories || '').split(',').map(s => s.trim()),
-        city: n.city,
-        state: n.state,
-        description: n.description,
-        keywords: (n.keywords || '').split(' '),
-        rating: n.rating,
-        contactPhone: n.contact_phone,
-        contactEmail: n.contact_email,
-        website: n.website,
-        urgencyLevelsHandled: n.urgency_levels_handled,
-        verified: true
-      }));
-      await NGO.insertMany(formatted);
+      await NGO.insertMany(list);
     }
 
     res.status(200).json({

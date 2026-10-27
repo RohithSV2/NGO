@@ -2,16 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
 const CATEGORIES = [
-  'Disaster Relief',
-  'Healthcare',
-  'Hunger & Food',
-  'Education',
-  'Child Welfare',
-  'Animal Welfare',
-  'Women Empowerment',
-  'Clean Water',
-  'Mental Health',
-  'Environment',
+  'Education & Literacy',
+  'Health & Family Welfare',
+  'Agriculture & Rural Development',
+  'Children & Youth Welfare',
+  "Women's Development & Empowerment",
+  'Aged/Elderly Care',
+  'Disaster Relief & Management',
+  'Animal Husbandry & Welfare',
+  'Drinking Water & Sanitation',
   'General Aid'
 ];
 
@@ -25,7 +24,7 @@ const URGENCIES = [
 export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker }) {
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Disaster Relief',
+    category: 'Education & Literacy',
     urgency: 'Medium',
     city: '',
     state: '',
@@ -153,7 +152,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
           {/* Main Form */}
           <form className="pro-form-card" onSubmit={handleSubmit}>
             <div className="form-field">
-              <label htmlFor="req-title">Request Title *</label>
+              <label htmlFor="req-title">Request Title</label>
               <input
                 id="req-title"
                 type="text"
@@ -167,7 +166,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
 
             <div className="form-columns-2">
               <div className="form-field">
-                <label htmlFor="req-category">Sector / Category *</label>
+                <label htmlFor="req-category">Sector / Category</label>
                 <select
                   id="req-category"
                   className="input-control select-control"
@@ -181,12 +180,12 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
               </div>
 
               <div className="form-field">
-                <label htmlFor="req-city">City / District *</label>
+                <label htmlFor="req-city">City / District</label>
                 <input
                   id="req-city"
                   type="text"
                   className="input-control"
-                  placeholder="e.g. Mumbai, Delhi, Bengaluru"
+                  placeholder="e.g. Mysore, Chitradurga, Davanagere, Shivamogga"
                   value={formData.city}
                   onChange={e => setFormData({ ...formData, city: e.target.value })}
                   required
@@ -195,7 +194,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
             </div>
 
             <div className="form-field">
-              <label>Urgency Level *</label>
+              <label>Urgency Level</label>
               <div className="urgency-buttons-row">
                 {URGENCIES.map(u => (
                   <button
@@ -211,7 +210,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
             </div>
 
             <div className="form-field">
-              <label htmlFor="req-desc">Detailed Description & Resources Needed *</label>
+              <label htmlFor="req-desc">Detailed Description & Resources Needed</label>
               <textarea
                 id="req-desc"
                 className="input-control textarea-control"
@@ -225,7 +224,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
 
             <div className="form-columns-2">
               <div className="form-field">
-                <label htmlFor="req-name">Requester Name *</label>
+                <label htmlFor="req-name">Requester Name</label>
                 <input
                   id="req-name"
                   type="text"
@@ -238,7 +237,7 @@ export default function AidRequestForm({ onRequestSubmitted, onNavigateToTracker
               </div>
 
               <div className="form-field">
-                <label htmlFor="req-phone">Contact Phone Number *</label>
+                <label htmlFor="req-phone">Contact Phone Number</label>
                 <input
                   id="req-phone"
                   type="tel"

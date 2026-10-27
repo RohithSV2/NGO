@@ -350,32 +350,4 @@ export const INITIAL_REQUESTS = [
   }
 ];
 
-export const INITIAL_RATINGS = [
-  {
-    _id: "rate_1",
-    ngoId: "1",
-    ngoName: "Goonj Disaster Relief",
-    userName: "Aditya Verma",
-    rating: 5,
-    review: "Incredible response during the flood relief efforts. They reached our village with essential dry rations and tarpaulins within 24 hours.",
-    createdAt: "2026-10-15T10:00:00Z"
-  },
-  {
-    _id: "rate_2",
-    ngoId: "5",
-    ngoName: "Red Cross Society Relief",
-    userName: "Sunita Joshi",
-    rating: 5,
-    review: "Provided rare blood units immediately when our relative was admitted in emergency surgery. Forever grateful!",
-    createdAt: "2026-10-16T12:30:00Z"
-  },
-  {
-    _id: "rate_3",
-    ngoId: "4",
-    ngoName: "Feeding India (Zomato)",
-    userName: "Pooja Reddy",
-    rating: 5,
-    review: "Daily mid-day meal supplies have nourished hundreds of children across our municipal primary centers with great quality.",
-    createdAt: "2026-10-17T15:45:00Z"
-  }
-];
+export const INITIAL_RATINGS = [];

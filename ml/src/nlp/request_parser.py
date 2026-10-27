@@ -1,6 +1,7 @@
 """
 Request Parser Module
 Extracts humanitarian intent, category, location references, and urgency from raw request text.
+Enhanced to support Karnataka districts (Mysore, Chitradurga, Davanagere, Shivamogga) and sector signals.
 """
 
 from typing import Dict, Any, List
@@ -15,19 +16,25 @@ CATEGORY_SIGNALS = {
     'Disaster Relief': ['flood', 'earthquake', 'cyclone', 'landslide', 'tsunami', 'disaster', 'calamity', 'rescue', 'trapped', 'evacuation', 'relief kit'],
     'Hunger & Food': ['food', 'hunger', 'hungry', 'starving', 'meals', 'ration', 'groceries', 'malnutrition', 'kitchen', 'cooked food', 'dinner', 'lunch'],
     'Healthcare': ['doctor', 'hospital', 'medicine', 'medicines', 'ambulance', 'blood', 'clinic', 'surgery', 'illness', 'disease', 'fever', 'oxygen', 'icu', 'treatment', 'patient', 'health'],
-    'Education': ['school', 'education', 'student', 'children', 'books', 'stationery', 'study', 'teacher', 'classes', 'tuition', 'scholarship', 'literacy'],
+    'Education & Literacy': ['school', 'education', 'student', 'children', 'books', 'stationery', 'study', 'teacher', 'classes', 'tuition', 'scholarship', 'literacy'],
+    'Agriculture': ['crop', 'farmer', 'farming', 'seeds', 'irrigation', 'agriculture', 'fertilizer', 'drought', 'harvest', 'pesticide', 'soil'],
+    'Rural Development': ['rural', 'village', 'panchayat', 'poverty', 'sanitation', 'drinking water', 'borewell', 'shg', 'community development', 'upliftment'],
+    'Women Empowerment': ['women', 'domestic violence', 'assault', 'maternal', 'girl child', 'pregnant', 'harassment', 'livelihood', 'artisan', 'widow', 'mahila'],
+    'Aged/Elderly': ['elderly', 'old age', 'senior citizen', 'grandfather', 'grandmother', 'pension', 'hospice', 'dementia', 'aged'],
+    'Children': ['child', 'orphan', 'orphanage', 'pediatric', 'infant', 'baby', 'underprivileged children', 'child labor', 'foster'],
+    'Animal Husbandry': ['cattle', 'cow', 'buffalo', 'dairy', 'fodder', 'veterinary', 'livestock', 'animal husbandry', 'fisheries', 'poultry'],
     'Animal Welfare': ['dog', 'cat', 'puppy', 'kitten', 'cow', 'cattle', 'animal', 'stray', 'injured animal', 'vet', 'rabies', 'veterinary'],
-    'Women Empowerment': ['women', 'domestic violence', 'assault', 'maternal', 'girl child', 'pregnant', 'harassment', 'livelihood', 'artisan', 'widow'],
-    'Elderly Care': ['elderly', 'old age', 'senior citizen', 'grandfather', 'grandmother', 'pension', 'hospice', 'dementia'],
     'Clean Water & Sanitation': ['water', 'drinking water', 'toilet', 'sanitation', 'clean water', 'contamination', 'borewell', 'hygiene'],
     'Environment': ['tree', 'trees', 'plantation', 'pollution', 'waste', 'recycling', 'forest', 'climate', 'garbage', 'sapling'],
     'Mental Health': ['depression', 'anxiety', 'suicide', 'mental health', 'counseling', 'therapy', 'distress', 'panic attack']
 }
 
 INDIAN_CITIES = [
-    'mumbai', 'delhi', 'new delhi', 'bengaluru', 'bangalore', 'chennai', 'kolkata',
-    'hyderabad', 'pune', 'ahmedabad', 'jaipur', 'lucknow', 'chandigarh', 'dehradun',
-    'bhopal', 'indore', 'patna', 'guwahati', 'dharamshala', 'kochi', 'varanasi', 'surat'
+    'mysore', 'mysuru', 'chitradurga', 'davanagere', 'davangere', 'shivamogga', 'shimoga',
+    'hunsur', 'hiriyur', 'molakalmuru', 'soraba', 'sagar', 'bhadravathi', 'nanjangud',
+    'harihara', 'channagiri', 'challakere', 'hosadurga', 'shikaripura', 'thirthahalli',
+    'bengaluru', 'bangalore', 'mumbai', 'delhi', 'new delhi', 'chennai', 'kolkata',
+    'hyderabad', 'pune', 'ahmedabad', 'jaipur', 'lucknow', 'chandigarh', 'dehradun'
 ]
 
 def detect_category(text: str) -> str:
@@ -44,10 +51,19 @@ def detect_category(text: str) -> str:
     return 'General Aid'
 
 def extract_city(text: str) -> str:
-    """Extracts known city names mentioned in the text."""
+    """Extracts known city/district names mentioned in the text."""
     lower = text.lower()
     for city in INDIAN_CITIES:
         if city in lower:
+            # Normalize common synonyms
+            if city in ('mysuru', 'mysore'):
+                return 'Mysore'
+            if city in ('davangere', 'davanagere'):
+                return 'Davanagere'
+            if city in ('shimoga', 'shivamogga'):
+                return 'Shivamogga'
+            if city in ('bangalore', 'bengaluru'):
+                return 'Bengaluru'
             return " ".join(word.capitalize() for word in city.split())
     return ""
 

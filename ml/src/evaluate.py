@@ -1,6 +1,7 @@
 """
 Evaluation & Benchmark Suite
-Tests the NGO recommendation engine across diverse simulated crisis and aid requests.
+Tests the NGO recommendation engine across diverse crisis and humanitarian aid requests
+targeting the unified NGO knowledge base across Karnataka districts (Mysore, Chitradurga, Davanagere, Shivamogga).
 """
 
 import sys
@@ -15,54 +16,54 @@ from predict import NGOMatcher
 
 TEST_CASES = [
     {
-        'name': 'Medical Blood Emergency',
-        'request': {
-            'title': 'Emergency blood requirement',
-            'description': 'Urgent O-negative blood units and ambulance needed for trauma patient after road accident in Mumbai.',
-            'category': 'Healthcare',
-            'city': 'Mumbai'
-        },
-        'expected_categories': ['Healthcare', 'Healthcare & Disaster']
-    },
-    {
-        'name': 'Street Animal Rescue',
-        'request': {
-            'title': 'Injured stray puppy hit by car',
-            'description': 'Stray dog with fractured leg bleeding near road in Delhi, needs veterinary surgery and shelter.',
-            'category': 'Animal Welfare',
-            'city': 'New Delhi'
-        },
-        'expected_categories': ['Animal Welfare']
-    },
-    {
-        'name': 'Slum Child Education Support',
+        'name': 'Primary School Education & Books',
         'request': {
             'title': 'School books and tuition for children',
-            'description': 'Providing free primary school books, pencils, and reading classes for 40 underprivileged kids.',
-            'category': 'Education',
-            'city': 'Mumbai'
+            'description': 'Providing free primary school books, pencils, and reading classes for underprivileged students.',
+            'category': 'Education & Literacy',
+            'city': 'Mysore'
         },
-        'expected_categories': ['Education', 'Child Welfare']
+        'expected_categories': ['Education & Literacy', 'Children', 'Education']
     },
     {
-        'name': 'Severe Flood Relief',
+        'name': 'Rural Agriculture & Farmer Drought Aid',
         'request': {
-            'title': 'Severe cyclone and flood evacuation',
-            'description': 'People trapped on rooftops due to water logging in Chennai, urgently need rescue boats and dry food.',
-            'category': 'Disaster Relief',
-            'city': 'Chennai'
+            'title': 'Drought irrigation and seeds for dryland farmers',
+            'description': 'Small farmers needing drought resistant seeds, drip irrigation kits and agrarian support.',
+            'category': 'Agriculture',
+            'city': 'Chitradurga'
         },
-        'expected_categories': ['Disaster Relief']
+        'expected_categories': ['Agriculture', 'Rural Development', 'Rural Development & Poverty Alleviation', 'Poverty Alleviation']
     },
     {
-        'name': 'Mental Health Crisis',
+        'name': 'Women SHG & Skill Development',
         'request': {
-            'title': 'Urgent emotional counselling',
-            'description': 'Person experiencing severe depression and suicidal thoughts requiring immediate psychological therapist support.',
-            'category': 'Mental Health',
-            'city': 'Mumbai'
+            'title': 'Vocational tailoring and women empowerment program',
+            'description': 'Setting up self-help groups for rural women to provide stitching machinery, micro finance, and livelihood training.',
+            'category': "Women's Development & Empowerment",
+            'city': 'Davanagere'
         },
-        'expected_categories': ['Mental Health']
+        'expected_categories': ["Women's Development & Empowerment", "Women's Development", "Education & Literacy", "Micro Finance (SHGs)", "Rural Development"]
+    },
+    {
+        'name': 'Healthcare Clinic & Child Malnutrition',
+        'request': {
+            'title': 'Mobile medical camp and nutritional food for children',
+            'description': 'Urgent health checkup clinic, medicines, and supplementary infant nutrition for malnourished kids.',
+            'category': 'Health & Family Welfare',
+            'city': 'Shivamogga'
+        },
+        'expected_categories': ['Health & Family Welfare', 'Children', 'Nutrition', 'Healthcare']
+    },
+    {
+        'name': 'Cattle Livestock & Dairy Support',
+        'request': {
+            'title': 'Emergency cattle fodder and veterinary aid',
+            'description': 'Veterinary doctors and animal feed needed for cows and livestock in village dairy farms.',
+            'category': 'Animal Husbandry',
+            'city': 'Davanagere'
+        },
+        'expected_categories': ['Animal Husbandry', 'Animal Husbandry, Dairying & Fisheries', 'Agriculture']
     }
 ]
 
@@ -82,8 +83,19 @@ def run_evaluation():
         matches = matcher.match(req, top_k=3)
         top_match = matches[0] if matches else None
 
-        is_match_valid = top_match and any(exp.lower() in top_match['category'].lower() or top_match['category'].lower() in exp.lower() for exp in expected)
-        
+        is_match_valid = False
+        if top_match:
+            top_sectors = [s.lower() for s in (top_match.get('sectors') or [])]
+            top_cat = (top_match.get('category') or '').lower()
+            for exp in expected:
+                exp_low = exp.lower()
+                if exp_low in top_cat or top_cat in exp_low:
+                    is_match_valid = True
+                    break
+                if any(exp_low in s or s in exp_low for s in top_sectors):
+                    is_match_valid = True
+                    break
+
         status = "PASSED" if is_match_valid else "FAILED"
         if is_match_valid:
             passed += 1
@@ -91,7 +103,7 @@ def run_evaluation():
         print(f"\n[Test {idx}/{len(TEST_CASES)}] {name} -> {status}")
         print(f"  Query: \"{req['title']}\" ({req['city'] or 'Any City'})")
         if top_match:
-            print(f"  Top Match: {top_match['name']} | Category: {top_match['category']} | Score: {top_match['match_score']}%")
+            print(f"  Top Match: {top_match['name']} | Category: {top_match['category']} | Location: {top_match['location']} | Score: {top_match['match_score']}%")
             print(f"  Breakdown: Similarity {top_match['breakdown']['text_similarity']}%, Category {top_match['breakdown']['category_match']}%, Location {top_match['breakdown']['location_match']}%")
 
     accuracy = (passed / len(TEST_CASES)) * 100

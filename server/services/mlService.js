@@ -5,7 +5,7 @@ const fs = require('fs');
 const CSV_PATH = path.join(__dirname, '..', '..', 'ml', 'dataset', 'ngos.csv');
 const PREDICT_SCRIPT = path.join(__dirname, '..', '..', 'ml', 'src', 'predict.py');
 
-// Parse CSV manually for fallback JS matcher
+// Parse CSV with full new schema support
 let cachedNGOs = null;
 const loadCSVNGOs = () => {
   if (cachedNGOs) return cachedNGOs;
@@ -13,11 +13,13 @@ const loadCSVNGOs = () => {
 
   const raw = fs.readFileSync(CSV_PATH, 'utf-8');
   const lines = raw.split(/\r?\n/).filter(line => line.trim().length > 0);
+  if (lines.length < 2) return [];
+
   const headers = lines[0].split(',').map(h => h.trim());
 
   cachedNGOs = [];
   for (let i = 1; i < lines.length; i++) {
-    // Basic CSV parser handling quoted commas
+    // Basic CSV parser handling quoted fields with commas
     const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
     const values = [];
     let match;
@@ -36,57 +38,102 @@ const loadCSVNGOs = () => {
       headers.forEach((h, idx) => {
         row[h] = values[idx] || '';
       });
+
+      const sectors = (row.sectors || '').split(';').map(s => s.trim()).filter(Boolean);
+      const helps = (row.helps || '').split(';').map(h => h.trim()).filter(Boolean);
+      const services = (row.services || '').split(';').map(s => s.trim()).filter(Boolean);
+      const areas_served = (row.areas_served || '').split(';').map(a => a.trim()).filter(Boolean);
+      const sources = (row.sources || '').split(';').map(s => s.trim()).filter(Boolean);
+      const phones = row.contact_phone ? [row.contact_phone] : [];
+      const emails = row.contact_email ? [row.contact_email] : [];
+
       cachedNGOs.push({
         ngo_id: parseInt(row.id || i),
-        name: row.name,
-        category: row.category,
-        subcategories: row.subcategories,
-        city: row.city,
-        state: row.state,
-        rating: parseFloat(row.rating || 4.5),
-        contact_phone: row.contact_phone,
-        contact_email: row.contact_email,
-        website: row.website,
-        description: row.description,
-        keywords: row.keywords,
-        urgency_levels_handled: (row.urgency_levels_handled || '').split(',').map(s => s.trim())
+        name: row.name || '',
+        registration_number: row.registration_number || '',
+        category: row.category || (sectors[0] || 'General Aid'),
+        sectors: sectors,
+        helps: helps,
+        services: services,
+        areas_served: areas_served,
+        city: row.city || '',
+        state: row.state || 'Karnataka',
+        location: row.location || `${row.city || ''}, ${row.state || 'Karnataka'}`,
+        description: row.description || '',
+        keywords: (row.keywords || '').split(' ').filter(Boolean),
+        capacity: parseInt(row.capacity || 1000),
+        urgencyLevelsHandled: (row.urgency_levels_handled || 'Low,Medium,High,Critical').split(',').map(s => s.trim()),
+        verified: row.verified === 'true' || row.verified === true,
+        rating: row.rating ? parseFloat(row.rating) : null,
+        phone: phones,
+        email: emails,
+        contactPhone: row.contact_phone || '',
+        contactEmail: row.contact_email || '',
+        contact_phone: row.contact_phone || '',
+        contact_email: row.contact_email || '',
+        website: row.website || '',
+        social_media: {
+          facebook: row.facebook || '',
+          instagram: row.instagram || '',
+          linkedin: row.linkedin || '',
+          twitter: row.twitter || '',
+          youtube: row.youtube || ''
+        },
+        sources: sources
       });
     }
   }
   return cachedNGOs;
 };
 
-// Pure JavaScript fallback NLP matcher
+// Pure JavaScript fallback NLP matcher with full schema intelligence
 const jsFallbackMatcher = (requestData, topK = 5) => {
   const ngos = loadCSVNGOs();
-  const text = `${requestData.title || ''} ${requestData.description || ''}`.toLowerCase();
+  const title = (requestData.title || '').toLowerCase();
+  const desc = (requestData.description || '').toLowerCase();
+  const text = `${title} ${desc}`;
   const reqCategory = (requestData.category || '').toLowerCase();
   const reqCity = (requestData.city || '').toLowerCase();
   const reqUrgency = requestData.urgency || 'Medium';
 
   const scored = ngos.map(ngo => {
     let textSim = 0;
-    const ngoText = `${ngo.name} ${ngo.category} ${ngo.description} ${ngo.keywords}`.toLowerCase();
-    const words = text.split(/\W+/).filter(w => w.length > 3);
+    const sectorsStr = Array.isArray(ngo.sectors) ? ngo.sectors.join(' ') : (ngo.sectors || '');
+    const helpsStr = Array.isArray(ngo.helps) ? ngo.helps.join(' ') : (ngo.helps || '');
+    const ngoSearchCorpus = `${ngo.name} ${ngo.category} ${sectorsStr} ${helpsStr} ${ngo.location} ${ngo.description}`.toLowerCase();
+
+    const words = text.split(/\W+/).filter(w => w.length > 2);
     if (words.length > 0) {
-      const hits = words.filter(w => ngoText.includes(w)).length;
+      const hits = words.filter(w => ngoSearchCorpus.includes(w)).length;
       textSim = hits / words.length;
     }
 
-    let catMatch = 0;
-    if (reqCategory && (ngo.category.toLowerCase().includes(reqCategory) || reqCategory.includes(ngo.category.toLowerCase()))) {
-      catMatch = 1.0;
-    } else if (reqCategory && ngo.subcategories && ngo.subcategories.toLowerCase().includes(reqCategory)) {
-      catMatch = 0.75;
+    let catMatch = 0.3; // baseline
+    if (reqCategory && reqCategory !== 'general aid') {
+      const inCat = (ngo.category || '').toLowerCase().includes(reqCategory) || reqCategory.includes((ngo.category || '').toLowerCase());
+      const inSectors = Array.isArray(ngo.sectors) && ngo.sectors.some(s => s.toLowerCase().includes(reqCategory) || reqCategory.includes(s.toLowerCase()));
+      const inHelps = Array.isArray(ngo.helps) && ngo.helps.some(h => h.toLowerCase().includes(reqCategory) || reqCategory.includes(h.toLowerCase()));
+      if (inCat || inSectors) {
+        catMatch = 1.0;
+      } else if (inHelps) {
+        catMatch = 0.85;
+      }
     }
 
     let locMatch = 0.5;
-    if (reqCity && ngo.city.toLowerCase().includes(reqCity)) {
-      locMatch = 1.0;
+    if (reqCity) {
+      const inCity = (ngo.city || '').toLowerCase().includes(reqCity);
+      const inLoc = (ngo.location || '').toLowerCase().includes(reqCity);
+      const inAreas = Array.isArray(ngo.areas_served) && ngo.areas_served.some(a => a.toLowerCase().includes(reqCity));
+      if (inCity || inLoc || inAreas) {
+        locMatch = 1.0;
+      } else {
+        locMatch = 0.2;
+      }
     }
 
-    const ratingFactor = (ngo.rating || 4.5) / 5.0;
-    const handlesUrgency = ngo.urgency_levels_handled.includes(reqUrgency);
+    const ratingFactor = ngo.rating ? (ngo.rating / 5.0) : 0.8;
+    const handlesUrgency = (ngo.urgencyLevelsHandled || []).includes(reqUrgency);
     const urgencyBoost = handlesUrgency ? 1.15 : (reqUrgency === 'Critical' ? 0.85 : 1.0);
 
     const baseScore = (0.50 * textSim) + (0.25 * catMatch) + (0.15 * locMatch) + (0.10 * ratingFactor);
@@ -94,15 +141,21 @@ const jsFallbackMatcher = (requestData, topK = 5) => {
     const confidencePct = Math.round(finalScore * 1000) / 10;
 
     return {
-      ngo_id: ngo.ngo_id,
+      ngo_id: ngo.ngo_id || ngo._id,
       name: ngo.name,
       category: ngo.category,
+      sectors: ngo.sectors || [],
+      helps: ngo.helps || [],
       city: ngo.city,
       state: ngo.state,
+      location: ngo.location,
       rating: ngo.rating,
-      contact_phone: ngo.contact_phone,
-      contact_email: ngo.contact_email,
+      contact_phone: ngo.contactPhone || (ngo.phone && ngo.phone[0]) || '',
+      contact_email: ngo.contactEmail || (ngo.email && ngo.email[0]) || '',
+      contactPhone: ngo.contactPhone || (ngo.phone && ngo.phone[0]) || '',
+      contactEmail: ngo.contactEmail || (ngo.email && ngo.email[0]) || '',
       website: ngo.website,
+      social_media: ngo.social_media || {},
       description: ngo.description,
       match_score: confidencePct,
       breakdown: {
@@ -128,7 +181,7 @@ const matchAidRequest = async (requestData, topK = 5) => {
     const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
     const command = `${pyCmd} "${PREDICT_SCRIPT}" "${payload}"`;
 
-    exec(command, { timeout: 4000 }, (error, stdout) => {
+    exec(command, { timeout: 6000 }, (error, stdout) => {
       if (!error && stdout) {
         try {
           const parsed = JSON.parse(stdout.trim());

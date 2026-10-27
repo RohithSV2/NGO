@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Rating = require('../models/Rating');
 const NGO = require('../models/NGO');
 const { isDBConnected } = require('../config/db');
@@ -11,10 +12,10 @@ exports.addRating = async (req, res) => {
   try {
     const { ngoId, ngoName, userName, rating, review, aidRequestId } = req.body;
 
-    if (!ngoId || !userName || !rating || !review) {
+    if ((!ngoId && !ngoName) || !userName || !rating || !review) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide NGO ID, reviewer name, rating (1-5), and review text'
+        message: 'Please provide NGO ID or Name, reviewer name, rating (1-5), and review text'
       });
     }
 
@@ -27,48 +28,79 @@ exports.addRating = async (req, res) => {
     }
 
     if (isDBConnected()) {
+      // 1. Resolve Target NGO
+      let targetNGO = null;
+      if (ngoId && mongoose.Types.ObjectId.isValid(ngoId)) {
+        targetNGO = await NGO.findById(ngoId);
+      }
+      if (!targetNGO && ngoName) {
+        targetNGO = await NGO.findOne({ name: new RegExp(`^${ngoName.trim()}$`, 'i') });
+      }
+      if (!targetNGO && ngoId) {
+        targetNGO = await NGO.findOne({
+          $or: [
+            { registration_number: ngoId },
+            { name: new RegExp(`^${ngoId.trim()}$`, 'i') }
+          ]
+        });
+      }
+
+      const canonicalNGOId = targetNGO ? String(targetNGO._id) : String(ngoId || '');
+      const canonicalNGOName = targetNGO ? targetNGO.name : (ngoName || 'Verified NGO');
+
+      // 2. Persist Review
       const newRating = await Rating.create({
-        ngoId,
-        ngoName: ngoName || '',
-        userName,
+        ngo: targetNGO ? targetNGO._id : null,
+        ngoId: canonicalNGOId,
+        ngoName: canonicalNGOName,
+        userName: userName.trim(),
         rating: numericRating,
-        review,
+        review: review.trim(),
         aidRequest: aidRequestId || null,
         user: req.user ? req.user._id : null
       });
 
-      // Update NGO's average rating in MongoDB
-      try {
-        const ratings = await Rating.find({ ngoId });
-        const avg = ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length;
-        await NGO.findOneAndUpdate(
-          { $or: [{ _id: ngoId }, { name: ngoName }] },
-          { rating: Math.round(avg * 10) / 10, ratingCount: ratings.length }
-        );
-      } catch (e) {
-        // Continue even if NGO rating aggregation encounters mismatch
+      // 3. Dynamically re-aggregate average rating for the NGO
+      let updatedNGO = null;
+      if (targetNGO) {
+        const allRatings = await Rating.find({
+          $or: [
+            { ngo: targetNGO._id },
+            { ngoId: canonicalNGOId },
+            { ngoName: canonicalNGOName }
+          ]
+        });
+
+        const totalScore = allRatings.reduce((sum, item) => sum + item.rating, 0);
+        const dynamicAvg = Math.round((totalScore / allRatings.length) * 10) / 10;
+
+        targetNGO.rating = dynamicAvg;
+        targetNGO.ratingCount = allRatings.length;
+        updatedNGO = await targetNGO.save();
       }
 
       return res.status(201).json({
         success: true,
         message: 'Rating submitted successfully',
-        data: newRating
+        data: newRating,
+        updatedNGO
       });
     } else {
+      // In-memory fallback
       const mockRating = {
         _id: 'rate_' + Date.now(),
-        ngoId,
-        ngoName: ngoName || '',
-        userName,
+        ngoId: ngoId || '1',
+        ngoName: ngoName || 'Verified NGO',
+        userName: userName.trim(),
         rating: numericRating,
-        review,
+        review: review.trim(),
         createdAt: new Date().toISOString()
       };
       memoryRatings.unshift(mockRating);
 
       return res.status(201).json({
         success: true,
-        message: 'Rating submitted successfully',
+        message: 'Rating submitted successfully (in-memory mode)',
         data: mockRating
       });
     }
@@ -76,6 +108,33 @@ exports.addRating = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error submitting rating'
+    });
+  }
+};
+
+// @desc    Get all reviews or filtered reviews
+// @route   GET /api/ratings
+// @access  Public
+exports.getAllRatings = async (req, res) => {
+  try {
+    if (isDBConnected()) {
+      const ratings = await Rating.find({}).sort({ createdAt: -1 });
+      return res.status(200).json({
+        success: true,
+        count: ratings.length,
+        data: ratings
+      });
+    } else {
+      return res.status(200).json({
+        success: true,
+        count: memoryRatings.length,
+        data: memoryRatings
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching reviews'
     });
   }
 };
@@ -88,7 +147,17 @@ exports.getNGORatings = async (req, res) => {
     const { ngoId } = req.params;
 
     if (isDBConnected()) {
-      const ratings = await Rating.find({ ngoId }).sort({ createdAt: -1 });
+      const query = {
+        $or: [
+          { ngoId: String(ngoId) },
+          { ngoName: String(ngoId) }
+        ]
+      };
+      if (mongoose.Types.ObjectId.isValid(ngoId)) {
+        query.$or.push({ ngo: ngoId });
+      }
+
+      const ratings = await Rating.find(query).sort({ createdAt: -1 });
       return res.status(200).json({
         success: true,
         count: ratings.length,
