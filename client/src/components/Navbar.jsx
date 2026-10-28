@@ -57,56 +57,6 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
         <div className="navbar-actions">
           {user ? (
             <div className="user-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {isNGO ? (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('ngo-portal')}
-                  title="Directly view NGO Response Operations Center"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 14px',
-                    backgroundColor: '#16a34a',
-                    border: '1px solid #15803d',
-                    borderRadius: '20px',
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 6px rgba(22, 101, 52, 0.2)'
-                  }}
-                >
-                  <span>🏢</span>
-                  <span>Operations Hub</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-quick-tracker"
-                  onClick={() => setActiveTab('tracker')}
-                  title="Directly view your Aid Request Tracking Board"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 14px',
-                    backgroundColor: '#f0fdf4',
-                    border: '1px solid #86efac',
-                    borderRadius: '20px',
-                    color: '#166534',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <span>📋</span>
-                  <span>My Tracker</span>
-                </button>
-              )}
-
               <div className="user-profile-pill">
                 <span className="user-icon">{isNGO ? '🏢' : '👤'}</span>
                 <span className="user-display-name">
