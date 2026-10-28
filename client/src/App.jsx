@@ -135,13 +135,12 @@ function App() {
           <>
             <Hero
               onPostRequest={() => setActiveTab('request-aid')}
-              onExploreDirectory={() => setActiveTab('directory')}
-              onTrackRequests={() => setActiveTab('tracker')}
               onOpenNGOPortal={() => setActiveTab('ngo-portal')}
               stats={{
                 totalNGOs: ngos.length,
                 totalRequests: requests.length
               }}
+              user={user}
             />
 
             {user?.role === 'ngo' && (

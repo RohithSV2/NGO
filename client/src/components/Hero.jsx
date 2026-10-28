@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Hero({ onPostRequest, onExploreDirectory, onTrackRequests, onOpenNGOPortal, stats }) {
+export default function Hero({ onPostRequest, onOpenNGOPortal, stats = {}, user }) {
   return (
     <section className="hero-pro-section">
       <div className="hero-badge-pill">
@@ -25,55 +25,42 @@ export default function Hero({ onPostRequest, onExploreDirectory, onTrackRequest
         >
           Post Aid Request
         </button>
-        <button
-          type="button"
-          className="btn-outline-green hero-btn"
-          onClick={onTrackRequests}
-          title="Directly view live Aid Request Tracking Board"
-        >
-          📋 Track Requests
-        </button>
       </div>
 
-      <div style={{ marginTop: '14px', marginBottom: '8px' }}>
-        <button
-          type="button"
-          onClick={onOpenNGOPortal}
-          style={{
-            background: '#f0fdf4',
-            border: '1px solid #86efac',
-            color: '#166534',
-            padding: '6px 16px',
-            borderRadius: '20px',
-            fontSize: '13px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 2px 4px rgba(22, 101, 52, 0.08)'
-          }}
-        >
-          <span>🏢</span>
-          <span>Are you an NGO? Access NGO Response & Connect Hub &rarr;</span>
-        </button>
-      </div>
+      {user?.role !== 'citizen' && (
+        <div style={{ marginTop: '14px', marginBottom: '8px' }}>
+          <button
+            type="button"
+            onClick={onOpenNGOPortal}
+            style={{
+              background: '#f0fdf4',
+              border: '1px solid #86efac',
+              color: '#166534',
+              padding: '6px 16px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 4px rgba(22, 101, 52, 0.08)'
+            }}
+          >
+            <span>🏢</span>
+            <span>Are you an NGO? Access NGO Response & Connect Hub &rarr;</span>
+          </button>
+        </div>
+      )}
 
       <div className="hero-metrics-grid">
         <div className="metric-box">
           <div className="metric-value">{stats.totalNGOs || 25}+</div>
           <div className="metric-name">Verified Partner NGOs</div>
         </div>
-        <div
-          className="metric-box clickable-metric"
-          onClick={onTrackRequests}
-          role="button"
-          tabIndex={0}
-          title="Click to directly open Aid Request Tracking Board"
-          style={{ cursor: 'pointer' }}
-        >
+        <div className="metric-box">
           <div className="metric-value">{stats.totalRequests || 40}+</div>
-          <div className="metric-name">Aid Requests Managed &rarr;</div>
+          <div className="metric-name">Aid Requests Managed</div>
         </div>
         <div className="metric-box">
           <div className="metric-value">98.5%</div>
