@@ -243,6 +243,12 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
     <div className="pro-tracker-card">
       <div className="tracker-card-top-row">
         <div className="tracker-card-badges">
+          {req.targetNgoName && (
+            <span style={{ fontSize: '11px', fontWeight: '800', backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #86efac', padding: '2px 8px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <span>🎯</span>
+              <span>Directed to {req.targetNgoName} Coordinator</span>
+            </span>
+          )}
           <span className={`status-pill ${getStatusClass(req.status)}`}>{req.status}</span>
           <span className={`urgency-pill ${getUrgencyClass(req.urgency)}`}>{req.urgency} Urgency</span>
           <span className="category-tag-neutral">{req.category}</span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
 const CATEGORIES = [
@@ -22,12 +22,20 @@ const URGENCIES = [
   { level: 'Critical', label: 'Critical', badgeClass: 'urgency-critical' }
 ];
 
-export default function AidRequestForm({ user, onRequestSubmitted, onNavigateToTracker }) {
+export default function AidRequestForm({
+  user,
+  onRequestSubmitted,
+  onNavigateToTracker,
+  targetNGO = null,
+  onClearTargetNGO,
+  ngos = []
+}) {
+  const [selectedTargetNGO, setSelectedTargetNGO] = useState(targetNGO);
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Hunger & Food Relief',
+    category: targetNGO?.category || 'Hunger & Food Relief',
     urgency: 'Medium',
-    city: '',
+    city: targetNGO?.city || '',
     state: '',
     requesterName: user?.name || '',
     requesterPhone: user?.phone || '',
@@ -37,6 +45,37 @@ export default function AidRequestForm({ user, onRequestSubmitted, onNavigateToT
 
   const [submitting, setSubmitting] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState(null);
+
+  useEffect(() => {
+    if (targetNGO) {
+      setSelectedTargetNGO(targetNGO);
+      setFormData(prev => ({
+        ...prev,
+        category: targetNGO.category || prev.category,
+        city: targetNGO.city || prev.city
+      }));
+    }
+  }, [targetNGO]);
+
+  const handleSelectNGO = (ngoIdOrName) => {
+    if (!ngoIdOrName) {
+      setSelectedTargetNGO(null);
+      if (onClearTargetNGO) onClearTargetNGO();
+      return;
+    }
+    const found = ngos.find(
+      n => String(n._id || n.ngo_id || n.id || n.name) === String(ngoIdOrName) ||
+           n.name.toLowerCase() === String(ngoIdOrName).toLowerCase()
+    );
+    if (found) {
+      setSelectedTargetNGO(found);
+      setFormData(prev => ({
+        ...prev,
+        category: found.category || prev.category,
+        city: found.city || prev.city
+      }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,10 +92,22 @@ export default function AidRequestForm({ user, onRequestSubmitted, onNavigateToT
 
     setSubmitting(true);
     try {
-      const created = await api.createAidRequest({
+      const payload = {
         ...formData,
-        requesterPhone: cleanPhone
-      });
+        requesterPhone: cleanPhone,
+        targetNGO: selectedTargetNGO ? {
+          ngoId: String(selectedTargetNGO._id || selectedTargetNGO.ngo_id || selectedTargetNGO.id || 'direct'),
+          name: selectedTargetNGO.name,
+          category: selectedTargetNGO.category,
+          city: selectedTargetNGO.city,
+          contactPhone: selectedTargetNGO.contactPhone || selectedTargetNGO.contact_phone || '',
+          contactEmail: selectedTargetNGO.contactEmail || selectedTargetNGO.contact_email || ''
+        } : null,
+        targetNgoName: selectedTargetNGO ? selectedTargetNGO.name : null,
+        isDirectRequest: Boolean(selectedTargetNGO)
+      };
+
+      const created = await api.createAidRequest(payload);
       setSubmittedRequest(created);
       onRequestSubmitted(created);
     } catch (err) {
@@ -80,6 +131,27 @@ export default function AidRequestForm({ user, onRequestSubmitted, onNavigateToT
           <p className="confirmation-meta">
             Tracking ID: <code>{submittedRequest._id}</code> &bull; Status: <span className="status-badge-inline">{submittedRequest.status}</span>
           </p>
+
+          {submittedRequest.targetNgoName && (
+            <div
+              style={{
+                backgroundColor: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: '8px',
+                padding: '14px 18px',
+                margin: '16px 0 20px',
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#065f46', fontWeight: '800', fontSize: '15px' }}>
+                <span>🎯</span>
+                <span>Direct Distress Request Dispatched to {submittedRequest.targetNgoName}</span>
+              </div>
+              <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#047857', lineHeight: '1.5' }}>
+                The coordinator for <strong>{submittedRequest.targetNgoName}</strong> has received this distress signal in their live Operations Desk and is actively monitoring it to establish direct contact and dispatch assistance.
+              </p>
+            </div>
+          )}
 
           <div className="matched-ngos-summary">
             <h4>Matched Organizations ({submittedRequest.matchedNGOs?.length || 0})</h4>
@@ -112,6 +184,8 @@ export default function AidRequestForm({ user, onRequestSubmitted, onNavigateToT
               className="btn-outline-green"
               onClick={() => {
                 setSubmittedRequest(null);
+                setSelectedTargetNGO(null);
+                if (onClearTargetNGO) onClearTargetNGO();
                 setFormData({
                   title: '',
                   category: 'Hunger & Food Relief',
@@ -131,8 +205,80 @@ export default function AidRequestForm({ user, onRequestSubmitted, onNavigateToT
         </div>
       ) : (
         <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+          {/* Direct Targeting Indicator Banner */}
+          {selectedTargetNGO && (
+            <div
+              style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #86efac',
+                borderRadius: '10px',
+                padding: '14px 18px',
+                marginBottom: '20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '26px' }}>🎯</span>
+                <div>
+                  <div style={{ fontWeight: '800', color: '#166534', fontSize: '15px' }}>
+                    Directing Aid Request To: {selectedTargetNGO.name}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#15803d', marginTop: '2px' }}>
+                    Sector: {selectedTargetNGO.category} &bull; City: {selectedTargetNGO.city} &bull; The coordinator of this NGO will receive and monitor your request directly.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTargetNGO(null);
+                  if (onClearTargetNGO) onClearTargetNGO();
+                }}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #86efac',
+                  color: '#166534',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear Target (Open Match)
+              </button>
+            </div>
+          )}
+
           {/* Main Form */}
           <form className="pro-form-card" onSubmit={handleSubmit}>
+            {/* Target NGO Selector Dropdown */}
+            <div className="form-field">
+              <label htmlFor="req-target-ngo">
+                Recipient NGO / Destination{' '}
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  (Select a specific NGO coordinator or leave on AI auto-match)
+                </span>
+              </label>
+              <select
+                id="req-target-ngo"
+                className="input-control select-control"
+                value={selectedTargetNGO ? (selectedTargetNGO._id || selectedTargetNGO.ngo_id || selectedTargetNGO.id || selectedTargetNGO.name) : ''}
+                onChange={e => handleSelectNGO(e.target.value)}
+              >
+                <option value="">🌐 Open Emergency Stream (Auto-match top verified NGOs via AI)</option>
+                {ngos.map(n => (
+                  <option key={n._id || n.ngo_id || n.id || n.name} value={n._id || n.ngo_id || n.id || n.name}>
+                    🏢 {n.name} ({n.category} &bull; {n.city})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="form-field">
               <label htmlFor="req-title">Request Title</label>
               <input
@@ -250,7 +396,7 @@ export default function AidRequestForm({ user, onRequestSubmitted, onNavigateToT
               className="btn-primary-green submit-btn-full"
               disabled={submitting}
             >
-              {submitting ? 'Processing Request...' : 'Submit Aid Request'}
+              {submitting ? 'Processing Request...' : (selectedTargetNGO ? `Send Request to ${selectedTargetNGO.name} Coordinator` : 'Submit Aid Request')}
             </button>
           </form>
         </div>

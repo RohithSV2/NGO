@@ -24,6 +24,22 @@ export default function NGODashboard({
     user?.ngoName || 'Mysuru Relief & Food Care'
   );
 
+  // Sync activeNgoName if user logs in or profile changes
+  React.useEffect(() => {
+    if (user?.ngoName) {
+      setActiveNgoName(user.ngoName);
+    }
+  }, [user]);
+
+  // Combine COMMON_NGOS and all ngos from props so coordinator can switch or monitor any organization
+  const allAvailableNgos = useMemo(() => {
+    const names = new Set(COMMON_NGOS);
+    ngos.forEach(n => {
+      if (n.name) names.add(n.name);
+    });
+    return Array.from(names).sort();
+  }, [ngos]);
+
   const [activeTabFilter, setActiveTabFilter] = useState('all');
   const [searchFilter, setSearchFilter] = useState('');
   const [operationalNotes, setOperationalNotes] = useState({});
@@ -48,16 +64,23 @@ export default function NGODashboard({
     return ngos.find(n => n.name.toLowerCase() === activeNgoName.toLowerCase()) || null;
   }, [ngos, activeNgoName]);
 
-  // Filter requests that match this NGO or are relevant to this NGO's sector/city
+  // Filter requests that match this NGO or are relevant to this NGO's sector/city or directly sent to this NGO
   const matchedRequests = useMemo(() => {
     return requests.filter(req => {
-      // 1. Direct match in matchedNGOs list
+      // 1. Direct targeted request sent to this NGO coordinator
+      const isDirectTarget = req.targetNgoName && (
+        req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
+        activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
+      );
+      if (isDirectTarget) return true;
+
+      // 2. Direct match in matchedNGOs list
       const inMatchedList = Array.isArray(req.matchedNGOs) && req.matchedNGOs.some(
         m => (m.name || '').toLowerCase().includes(activeNgoName.toLowerCase()) ||
              activeNgoName.toLowerCase().includes((m.name || '').toLowerCase())
       );
 
-      // 2. City or Category relevance
+      // 3. City or Category relevance
       const isSameCity = currentNGOObj && req.city &&
         (req.city.toLowerCase() === (currentNGOObj.city || '').toLowerCase() ||
          (currentNGOObj.areas_served || []).some(a => a.toLowerCase().includes(req.city.toLowerCase())));
@@ -70,6 +93,16 @@ export default function NGODashboard({
     });
   }, [requests, activeNgoName, currentNGOObj]);
 
+  // Calculate direct requests sent specifically to this NGO
+  const directRequestsCount = useMemo(() => {
+    return matchedRequests.filter(req => {
+      return req.targetNgoName && (
+        req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
+        activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
+      );
+    }).length;
+  }, [matchedRequests, activeNgoName]);
+
   // Operational metrics
   const totalMatched = matchedRequests.length;
   const pendingCount = matchedRequests.filter(r => r.status === 'Pending' || r.status === 'Matched').length;
@@ -79,7 +112,13 @@ export default function NGODashboard({
   // Filtered requests by selected status tab and search term
   const displayedRequests = useMemo(() => {
     return matchedRequests.filter(req => {
-      if (activeTabFilter === 'urgent') {
+      if (activeTabFilter === 'direct') {
+        const isDirect = req.targetNgoName && (
+          req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
+          activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
+        );
+        if (!isDirect) return false;
+      } else if (activeTabFilter === 'urgent') {
         if (req.urgency !== 'Critical' && req.urgency !== 'High') return false;
       } else if (activeTabFilter === 'pending') {
         if (req.status !== 'Pending' && req.status !== 'Matched') return false;
@@ -100,7 +139,7 @@ export default function NGODashboard({
 
       return true;
     });
-  }, [matchedRequests, activeTabFilter, searchFilter]);
+  }, [matchedRequests, activeTabFilter, searchFilter, activeNgoName]);
 
   // Ratings for this NGO
   const ngoRatings = useMemo(() => {
@@ -225,7 +264,7 @@ export default function NGODashboard({
               cursor: 'pointer'
             }}
           >
-            {COMMON_NGOS.map(n => (
+            {allAvailableNgos.map(n => (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
@@ -236,17 +275,25 @@ export default function NGODashboard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: '16px',
           marginBottom: '28px'
         }}
       >
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #86efac', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)', borderTop: '4px solid #16a34a' }}>
+          <span style={{ fontSize: '12px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Direct Requests</span>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#166534', margin: '4px 0 2px' }}>
+            {directRequestsCount}
+          </div>
+          <span style={{ fontSize: '12px', color: '#15803d' }}>Sent to your Coordinator</span>
+        </div>
+
         <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
-          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Matched Distress Needs</span>
+          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Total Matched</span>
           <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: '4px 0 2px' }}>
             {totalMatched}
           </div>
-          <span style={{ fontSize: '12px', color: '#16a34a' }}>AI Natural Language Matches</span>
+          <span style={{ fontSize: '12px', color: '#16a34a' }}>Relevant Distress Needs</span>
         </div>
 
         <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
@@ -274,7 +321,7 @@ export default function NGODashboard({
         </div>
 
         <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
-          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Citizen Feedback Score</span>
+          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Feedback Score</span>
           <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: '4px 0 2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ color: '#eab308' }}>★</span>
             <span>{currentNGOObj?.rating || 4.9}</span>
@@ -296,6 +343,19 @@ export default function NGODashboard({
                 onClick={() => setActiveTabFilter('all')}
               >
                 All Matched ({matchedRequests.length})
+              </button>
+              <button
+                type="button"
+                className={`sector-tab-pill ${activeTabFilter === 'direct' ? 'active' : ''}`}
+                onClick={() => setActiveTabFilter('direct')}
+                style={{
+                  fontWeight: '700',
+                  backgroundColor: activeTabFilter === 'direct' ? '#166534' : '#ecfdf5',
+                  color: activeTabFilter === 'direct' ? '#ffffff' : '#065f46',
+                  border: '1px solid #86efac'
+                }}
+              >
+                🎯 Direct to You ({directRequestsCount})
               </button>
               <button
                 type="button"
@@ -352,6 +412,12 @@ export default function NGODashboard({
                 );
                 const score = matchInfo ? matchInfo.matchScore : 92.5;
                 const cleanPhone = (req.requesterPhone || '').replace(/\D/g, '');
+                const isDirectRequest = Boolean(
+                  req.targetNgoName && (
+                    req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
+                    activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
+                  )
+                );
 
                 return (
                   <div
@@ -362,12 +428,34 @@ export default function NGODashboard({
                       borderRadius: '12px',
                       padding: '20px',
                       boxShadow: 'var(--shadow-sm)',
-                      borderLeft: req.urgency === 'Critical' ? '5px solid #dc2626' : (req.urgency === 'High' ? '5px solid #ea580c' : '5px solid #16a34a')
+                      borderLeft: isDirectRequest
+                        ? '6px solid #16a34a'
+                        : (req.urgency === 'Critical' ? '5px solid #dc2626' : (req.urgency === 'High' ? '5px solid #ea580c' : '5px solid #16a34a'))
                     }}
                   >
                     {/* Card Top: Badges and Score */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        {isDirectRequest && (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              background: '#ecfdf5',
+                              color: '#065f46',
+                              padding: '3px 10px',
+                              borderRadius: '4px',
+                              fontWeight: '800',
+                              border: '1px solid #6ee7b7',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <span>🎯</span>
+                            <span>Direct Request to {activeNgoName} Coordinator</span>
+                          </span>
+                        )}
+
                         <span
                           style={{
                             padding: '3px 8px',
@@ -412,6 +500,62 @@ export default function NGODashboard({
                     <p style={{ margin: '0 0 14px', fontSize: '14px', color: '#334155', lineHeight: '1.5' }}>
                       {req.description}
                     </p>
+
+                    {/* Direct Coordinator Alert Banner */}
+                    {isDirectRequest && (
+                      <div
+                        style={{
+                          backgroundColor: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          marginBottom: '14px',
+                          fontSize: '13px',
+                          color: '#166534',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <span style={{ fontSize: '18px' }}>🔔</span>
+                        <div>
+                          <strong>Coordinator Direct Alert:</strong> The requester specifically chose <strong>{activeNgoName}</strong> for this distress signal. You are actively receiving and monitoring this mission.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Live Monitoring Status Bar */}
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        backgroundColor: '#f8fafc',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        marginBottom: '14px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>
+                          Coordinator Monitoring & Response Pipeline
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: req.status === 'Resolved' ? '#166534' : (req.status === 'In Progress' ? '#0369a1' : '#b45309') }}>
+                          {req.status === 'Resolved' ? '✓ Mission Completed' : (req.status === 'In Progress' ? '● Relief In Transit' : '● Awaiting Coordinator Action')}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', fontWeight: '600' }}>
+                        <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          ✓ Received & Monitored
+                        </span>
+                        <span style={{ color: '#cbd5e1' }}>&rarr;</span>
+                        <span style={{ color: req.status === 'In Progress' || req.status === 'Resolved' ? '#0284c7' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {req.status === 'In Progress' || req.status === 'Resolved' ? '✓' : '○'} Field Team Dispatched
+                        </span>
+                        <span style={{ color: '#cbd5e1' }}>&rarr;</span>
+                        <span style={{ color: req.status === 'Resolved' ? '#16a34a' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {req.status === 'Resolved' ? '✓ Delivered & Resolved' : '○ Delivery in Progress'}
+                        </span>
+                      </div>
+                    </div>
 
                     {/* Requester Direct Connect Hub */}
                     <div

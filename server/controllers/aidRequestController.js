@@ -20,7 +20,10 @@ exports.createAidRequest = async (req, res) => {
       address,
       requesterName,
       requesterPhone,
-      requesterEmail
+      requesterEmail,
+      targetNGO,
+      targetNgoName,
+      isDirectRequest
     } = req.body;
 
     if (!title || !description || !requesterName || !requesterPhone || !city) {
@@ -47,7 +50,7 @@ exports.createAidRequest = async (req, res) => {
       urgency: urgency || 'Medium'
     }, 5);
 
-    const formattedMatches = matchedNGOs.map(m => ({
+    let formattedMatches = matchedNGOs.map(m => ({
       ngoId: String(m.ngo_id),
       name: m.name,
       category: m.category,
@@ -58,6 +61,22 @@ exports.createAidRequest = async (req, res) => {
       breakdown: m.breakdown,
       status: 'Suggested'
     }));
+
+    const directTargetName = targetNgoName || targetNGO?.name || '';
+    if (directTargetName) {
+      formattedMatches = formattedMatches.filter(m => (m.name || '').toLowerCase() !== directTargetName.toLowerCase());
+      formattedMatches.unshift({
+        ngoId: String(targetNGO?.ngoId || targetNGO?._id || 'direct'),
+        name: directTargetName,
+        category: targetNGO?.category || category || 'General Aid',
+        city: targetNGO?.city || city,
+        contactPhone: targetNGO?.contactPhone || '',
+        contactEmail: targetNGO?.contactEmail || '',
+        matchScore: 100,
+        breakdown: { directSelection: 100, note: 'Direct distress request sent by citizen to this NGO coordinator' },
+        status: 'Notified'
+      });
+    }
 
     let savedRequest;
 
@@ -74,6 +93,8 @@ exports.createAidRequest = async (req, res) => {
         requesterPhone: cleanPhone,
         requesterEmail: requesterEmail || '',
         user: req.user ? req.user._id : null,
+        targetNgoName: directTargetName,
+        isDirectRequest: Boolean(directTargetName || isDirectRequest),
         matchedNGOs: formattedMatches,
         status: formattedMatches.length > 0 ? 'Matched' : 'Pending'
       });
@@ -91,6 +112,8 @@ exports.createAidRequest = async (req, res) => {
         requesterName,
         requesterPhone: cleanPhone,
         requesterEmail: requesterEmail || '',
+        targetNgoName: directTargetName,
+        isDirectRequest: Boolean(directTargetName || isDirectRequest),
         matchedNGOs: formattedMatches,
         status: formattedMatches.length > 0 ? 'Matched' : 'Pending',
         createdAt: new Date().toISOString()

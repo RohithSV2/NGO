@@ -79,6 +79,14 @@ const aidRequestSchema = new mongoose.Schema(
       ref: 'NGO',
       default: null
     },
+    targetNgoName: {
+      type: String,
+      default: ''
+    },
+    isDirectRequest: {
+      type: Boolean,
+      default: false
+    },
     status: {
       type: String,
       enum: ['Pending', 'Matched', 'In Progress', 'Resolved', 'Closed'],

@@ -23,6 +23,7 @@ function App() {
   const [reviewModalTarget, setReviewModalTarget] = useState(null);
   const [reviewScore, setReviewScore] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  const [selectedTargetNGO, setSelectedTargetNGO] = useState(null);
 
   // Load dataset from backend API or local storage fallback
   useEffect(() => {
@@ -78,6 +79,7 @@ function App() {
   };
 
   const handleDirectRequest = (targetNGO) => {
+    setSelectedTargetNGO(targetNGO);
     setActiveTab('request-aid');
   };
 
@@ -343,8 +345,14 @@ function App() {
         {activeTab === 'request-aid' && (
           <AidRequestForm
             user={user}
-            onRequestSubmitted={handleRequestSubmitted}
+            targetNGO={selectedTargetNGO}
+            onClearTargetNGO={() => setSelectedTargetNGO(null)}
+            onRequestSubmitted={(newReq) => {
+              handleRequestSubmitted(newReq);
+              setSelectedTargetNGO(null);
+            }}
             onNavigateToTracker={() => setActiveTab('tracker')}
+            ngos={ngos}
           />
         )}
 

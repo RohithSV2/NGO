@@ -220,20 +220,39 @@ export const api = {
     }
 
     const matches = clientSideMatch(requestData, 5);
+    let formattedMatches = matches.map(m => ({
+      ngoId: String(m.ngo_id),
+      name: m.name,
+      category: m.category,
+      city: m.city,
+      contactPhone: m.contact_phone || m.contactPhone || '',
+      contactEmail: m.contact_email || m.contactEmail || '',
+      matchScore: m.match_score,
+      breakdown: m.breakdown
+    }));
+
+    const directTargetName = requestData.targetNgoName || requestData.targetNGO?.name || '';
+    if (directTargetName) {
+      formattedMatches = formattedMatches.filter(m => (m.name || '').toLowerCase() !== directTargetName.toLowerCase());
+      formattedMatches.unshift({
+        ngoId: String(requestData.targetNGO?.ngoId || requestData.targetNGO?._id || requestData.targetNGO?.ngo_id || 'direct'),
+        name: directTargetName,
+        category: requestData.targetNGO?.category || requestData.category || 'General Aid',
+        city: requestData.targetNGO?.city || requestData.city || '',
+        contactPhone: requestData.targetNGO?.contactPhone || requestData.targetNGO?.contact_phone || '',
+        contactEmail: requestData.targetNGO?.contactEmail || requestData.targetNGO?.contact_email || '',
+        matchScore: 100,
+        breakdown: { directSelection: 100, note: 'Direct distress request sent by citizen to this NGO coordinator' }
+      });
+    }
+
     const newRequest = {
       _id: 'req_' + Date.now(),
       ...requestData,
-      status: matches.length > 0 ? 'Matched' : 'Pending',
-      matchedNGOs: matches.map(m => ({
-        ngoId: String(m.ngo_id),
-        name: m.name,
-        category: m.category,
-        city: m.city,
-        contactPhone: m.contact_phone || m.contactPhone || '',
-        contactEmail: m.contact_email || m.contactEmail || '',
-        matchScore: m.match_score,
-        breakdown: m.breakdown
-      })),
+      targetNgoName: directTargetName || null,
+      isDirectRequest: Boolean(directTargetName || requestData.isDirectRequest),
+      status: formattedMatches.length > 0 ? 'Matched' : 'Pending',
+      matchedNGOs: formattedMatches,
       createdAt: new Date().toISOString()
     };
 
