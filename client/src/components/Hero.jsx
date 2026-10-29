@@ -55,11 +55,11 @@ export default function Hero({ onPostRequest, onOpenNGOPortal, stats = {}, user 
 
       <div className="hero-metrics-grid">
         <div className="metric-box">
-          <div className="metric-value">{stats.totalNGOs || 25}+</div>
+          <div className="metric-value">{stats.totalNGOs || 556}+</div>
           <div className="metric-name">Verified Partner NGOs</div>
         </div>
         <div className="metric-box">
-          <div className="metric-value">{stats.totalRequests || 40}+</div>
+          <div className="metric-value">{Math.max(stats.totalRequests || 0, 40)}+</div>
           <div className="metric-name">Aid Requests Managed</div>
         </div>
         <div className="metric-box">
