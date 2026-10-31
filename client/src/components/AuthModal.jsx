@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 
 const VERIFIED_NGOS_LIST = [
-  'Mysuru Relief & Food Care',
-  'Akshaya Patra Foundation',
-  'Mysuru Vidya Education Trust',
-  'Goonj Disaster Relief',
-  'Red Cross Society Relief',
-  'Smile Foundation',
-  'Teach For India',
-  'Doctors For You',
-  'Helpage India',
+  'The Shimoga Multipurpose Social Service Society',
+  'Vishwabharti Trust',
+  'Vivekananda Rural Development Society',
+  'WEDS- WOMEN AND EDUCATION DEVELOPMENT SOCIETY',
+  'Yashaswini mahila educational & rural development trust',
+  'youths rural development organisation',
+  'YOUTH EFFORTS FOR SOCIETY TRUST',
+  'Vidyasinchana Educational Trust',
   'Other'
 ];
 
@@ -19,7 +18,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('citizen');
-  const [selectedNGO, setSelectedNGO] = useState('Mysuru Relief & Food Care');
+  const [selectedNGO, setSelectedNGO] = useState('The Shimoga Multipurpose Social Service Society');
   const [customNGO, setCustomNGO] = useState('');
   const [designation, setDesignation] = useState('');
   const [orgPhone, setOrgPhone] = useState('');

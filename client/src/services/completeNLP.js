@@ -30,27 +30,16 @@ export const STOPWORDS = new Set([
   'urgent', 'looking', 'find', 'give', 'provide', 'somebody', 'anyone', 'ngo', 'ngos'
 ]);
 
-// 2. Named Entity Dictionaries: Locations (Cities, Districts, Synonyms)
+// 2. Named Entity Dictionaries: Locations (Real Karnataka Districts & Synonyms)
 export const LOCATION_ENTITIES = {
-  'mysuru': { standard: 'Mysuru', state: 'Karnataka', district: 'Mysuru' },
-  'mysore': { standard: 'Mysuru', state: 'Karnataka', district: 'Mysuru' },
-  'bengaluru': { standard: 'Bengaluru', state: 'Karnataka', district: 'Bengaluru Urban' },
-  'bangalore': { standard: 'Bengaluru', state: 'Karnataka', district: 'Bengaluru Urban' },
   'chitradurga': { standard: 'Chitradurga', state: 'Karnataka', district: 'Chitradurga' },
   'davanagere': { standard: 'Davanagere', state: 'Karnataka', district: 'Davanagere' },
   'davangere': { standard: 'Davanagere', state: 'Karnataka', district: 'Davanagere' },
   'shivamogga': { standard: 'Shivamogga', state: 'Karnataka', district: 'Shivamogga' },
   'shimoga': { standard: 'Shivamogga', state: 'Karnataka', district: 'Shivamogga' },
-  'hubballi': { standard: 'Hubballi', state: 'Karnataka', district: 'Dharwad' },
-  'hubli': { standard: 'Hubballi', state: 'Karnataka', district: 'Dharwad' },
-  'mandya': { standard: 'Mandya', state: 'Karnataka', district: 'Mandya' },
-  'mumbai': { standard: 'Mumbai', state: 'Maharashtra', district: 'Mumbai' },
-  'delhi': { standard: 'Delhi', state: 'Delhi', district: 'Central Delhi' },
-  'new delhi': { standard: 'Delhi', state: 'Delhi', district: 'New Delhi' },
-  'chennai': { standard: 'Chennai', state: 'Tamil Nadu', district: 'Chennai' },
-  'kolkata': { standard: 'Kolkata', state: 'West Bengal', district: 'Kolkata' },
-  'hyderabad': { standard: 'Hyderabad', state: 'Telangana', district: 'Hyderabad' },
-  'pune': { standard: 'Pune', state: 'Maharashtra', district: 'Pune' }
+  'smg': { standard: 'Shivamogga', state: 'Karnataka', district: 'Shivamogga' },
+  'mysuru': { standard: 'Mysuru', state: 'Karnataka', district: 'Mysuru' },
+  'mysore': { standard: 'Mysuru', state: 'Karnataka', district: 'Mysuru' }
 };
 
 // 3. Category Semantic Corpus

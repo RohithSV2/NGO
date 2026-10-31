@@ -313,7 +313,7 @@ export default function AidRequestForm({
                   id="req-city"
                   type="text"
                   className="input-control"
-                  placeholder="e.g. Mysore, Chitradurga, Davanagere, Shivamogga"
+                  placeholder="e.g. Mysuru, Chitradurga, Davanagere, Shivamogga"
                   value={formData.city}
                   onChange={e => setFormData({ ...formData, city: e.target.value })}
                   required

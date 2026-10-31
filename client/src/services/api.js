@@ -11,10 +11,21 @@ const STORAGE_REQUESTS = 'ngo_app_requests';
 const STORAGE_RATINGS = 'ngo_app_ratings';
 const STORAGE_USER = 'ngo_app_user';
 
-// Initialize localStorage if empty
-if (!localStorage.getItem(STORAGE_REQUESTS)) {
+// Initialize and sanitize localStorage: remove any legacy mock requests from fake cities
+try {
+  const existingReqs = JSON.parse(localStorage.getItem(STORAGE_REQUESTS) || '[]');
+  const cleanedReqs = existingReqs.filter(r =>
+    !['Mumbai', 'Chennai', 'New Delhi', 'Delhi', 'Kolkata', 'Ahmedabad', 'Dehradun', 'Gurugram'].includes(r.city)
+  );
+  if (cleanedReqs.length === 0) {
+    localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(INITIAL_REQUESTS));
+  } else if (cleanedReqs.length !== existingReqs.length) {
+    localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(cleanedReqs));
+  }
+} catch (e) {
   localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(INITIAL_REQUESTS));
 }
+
 // Initialize and sanitize localStorage: remove any legacy mock reviews
 try {
   const existingRatings = JSON.parse(localStorage.getItem(STORAGE_RATINGS) || '[]');
@@ -37,12 +48,12 @@ export const clientSideMatch = (requestData, topK = 5) => {
   let reqCity = (requestData.city || '').toLowerCase();
   const reqUrgency = requestData.urgency || 'Medium';
 
-  // Natural Language city detection if not explicitly set or mentioned in prompt
+  // Natural Language city detection for real Karnataka districts
   if (!reqCity) {
     if (text.includes('mysuru') || text.includes('mysore')) reqCity = 'mysuru';
-    else if (text.includes('bengaluru') || text.includes('bangalore')) reqCity = 'bengaluru';
-    else if (text.includes('delhi')) reqCity = 'delhi';
-    else if (text.includes('mumbai')) reqCity = 'mumbai';
+    else if (text.includes('chitradurga')) reqCity = 'chitradurga';
+    else if (text.includes('davanagere') || text.includes('davangere')) reqCity = 'davanagere';
+    else if (text.includes('shivamogga') || text.includes('shimoga') || text.includes('smg')) reqCity = 'shivamogga';
   }
 
   // Natural Language category inference if general aid or food/education mentioned

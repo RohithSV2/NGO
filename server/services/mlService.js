@@ -99,9 +99,9 @@ const jsFallbackMatcher = (requestData, topK = 5) => {
   // Natural Language city detection if not explicitly set
   if (!reqCity) {
     if (text.includes('mysuru') || text.includes('mysore')) reqCity = 'mysuru';
-    else if (text.includes('bengaluru') || text.includes('bangalore')) reqCity = 'bengaluru';
-    else if (text.includes('delhi')) reqCity = 'delhi';
-    else if (text.includes('mumbai')) reqCity = 'mumbai';
+    else if (text.includes('chitradurga')) reqCity = 'chitradurga';
+    else if (text.includes('davanagere') || text.includes('davangere')) reqCity = 'davanagere';
+    else if (text.includes('shivamogga') || text.includes('shimoga') || text.includes('smg')) reqCity = 'shivamogga';
   }
 
   // Natural Language category inference

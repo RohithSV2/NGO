@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 
 const COMMON_NGOS = [
-  'Mysuru Relief & Food Care',
-  'Akshaya Patra Foundation',
-  'Mysuru Vidya Education Trust',
-  'Goonj Disaster Relief',
-  'Red Cross Society Relief',
-  'Teach For India',
-  'Doctors For You',
-  'Smile Foundation'
+  'The Shimoga Multipurpose Social Service Society',
+  'Vishwabharti Trust',
+  'Vivekananda Rural Development Society',
+  'WEDS- WOMEN AND EDUCATION DEVELOPMENT SOCIETY',
+  'Yashaswini mahila educational & rural development trust',
+  'youths rural development organisation',
+  'YOUTH EFFORTS FOR SOCIETY TRUST',
+  'Vidyasinchana Educational Trust'
 ];
 
 export default function NGODashboard({
@@ -19,9 +19,9 @@ export default function NGODashboard({
   onUpdateStatus,
   onOpenAuth
 }) {
-  // If user has a registered NGO name, default to that, else 'Mysuru Relief & Food Care'
+  // If user has a registered NGO name, default to that, else 'The Shimoga Multipurpose Social Service Society'
   const [activeNgoName, setActiveNgoName] = useState(
-    user?.ngoName || 'Mysuru Relief & Food Care'
+    user?.ngoName || 'The Shimoga Multipurpose Social Service Society'
   );
 
   // Sync activeNgoName if user logs in or profile changes
@@ -47,14 +47,14 @@ export default function NGODashboard({
   const [broadcastList, setBroadcastList] = useState([
     {
       id: 1,
-      ngo: 'Mysuru Relief & Food Care',
-      text: 'Community Kitchen active in Saraswathipuram: 300 hot food packets ready for dispatch to waterlogged areas.',
+      ngo: 'The Shimoga Multipurpose Social Service Society',
+      text: 'Emergency relief team active in Shivamogga: 250 hot meal packets and drinking water ready for flood-affected families.',
       time: 'Just now'
     },
     {
       id: 2,
-      ngo: 'Akshaya Patra Foundation',
-      text: 'Dry ration kit mobilization available for emergency shelters across Mysuru & Bengaluru districts.',
+      ngo: 'Vivekananda Rural Development Society',
+      text: 'Dry ration kit mobilization available for emergency distribution across Chitradurga rural communities.',
       time: '2 hours ago'
     }
   ]);
