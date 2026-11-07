@@ -10,6 +10,8 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
     ? [
         { id: 'ngo-portal', label: '🏢 NGO Response Hub' },
         { id: 'directory', label: 'NGO Directory' },
+        { id: 'analytics', label: '📊 District Analytics' },
+        { id: 'volunteers', label: '🤝 Volunteer Mobilization' },
         { id: 'reviews', label: 'Reviews & Ratings' }
       ]
     : [
@@ -17,6 +19,8 @@ export default function Navbar({ activeTab, setActiveTab, user, onOpenAuth, onLo
         { id: 'request-aid', label: 'Post Aid Request' },
         { id: 'tracker', label: user ? 'Track My Requests' : 'Track Requests' },
         { id: 'directory', label: 'NGO Directory' },
+        { id: 'analytics', label: '📊 District Analytics' },
+        { id: 'volunteers', label: '🤝 Volunteer Hub' },
         { id: 'reviews', label: 'Reviews & Ratings' }
       ];
 

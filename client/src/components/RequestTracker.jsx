@@ -9,7 +9,9 @@ export default function RequestTracker({
   onAddRating,
   user,
   onNavigateToPostRequest,
-  onNavigateToNGOHub
+  onNavigateToNGOHub,
+  onOpenXAI,
+  onOpenCertificate
 }) {
   const isNGO = user?.role === 'ngo';
 
@@ -166,6 +168,8 @@ export default function RequestTracker({
               onUpdateStatus={onUpdateStatus}
               onAddRating={onAddRating}
               user={user}
+              onOpenXAI={onOpenXAI}
+              onOpenCertificate={onOpenCertificate}
             />
           ))
         )}
@@ -174,7 +178,7 @@ export default function RequestTracker({
   );
 }
 
-function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
+function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, onOpenXAI, onOpenCertificate }) {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [selectedNgo, setSelectedNgo] = useState(() => (req.matchedNGOs && req.matchedNGOs.length > 0 ? req.matchedNGOs[0] : null));
   const [score, setScore] = useState(5);
@@ -286,6 +290,25 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
               {isReviewOpen ? 'Close Rating' : '★ Rate & Review'}
             </button>
           )}
+          {req.status === 'Resolved' && onOpenCertificate && (
+            <button
+              type="button"
+              className="btn-action-status"
+              onClick={() => onOpenCertificate(req)}
+              style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #16a34a',
+                color: '#166534',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '12px',
+                fontWeight: '700'
+              }}
+            >
+              📜 Relief Certificate
+            </button>
+          )}
         </div>
       </div>
 
@@ -351,6 +374,26 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user }) {
                     >
                       📞 {m.contactPhone}
                     </a>
+                  )}
+                  {onOpenXAI && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenXAI(m)}
+                      style={{
+                        marginLeft: '6px',
+                        background: '#f0fdf4',
+                        border: '1px solid #86efac',
+                        borderRadius: '4px',
+                        color: '#166534',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        padding: '1px 6px'
+                      }}
+                      title="View Explainable AI Matching Breakdown"
+                    >
+                      ⚡ XAI
+                    </button>
                   )}
                 </div>
               );

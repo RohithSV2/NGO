@@ -28,7 +28,8 @@ export default function AidRequestForm({
   onNavigateToTracker,
   targetNGO = null,
   onClearTargetNGO,
-  ngos = []
+  ngos = [],
+  onOpenXAI
 }) {
   const [selectedTargetNGO, setSelectedTargetNGO] = useState(targetNGO);
   const [formData, setFormData] = useState({
@@ -165,6 +166,30 @@ export default function AidRequestForm({
                     <span className="matched-phone">
                       📞 <a href={`tel:${ngo.contactPhone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{ngo.contactPhone}</a>
                     </span>
+                  )}
+                  {onOpenXAI && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenXAI(ngo)}
+                      style={{
+                        marginTop: '10px',
+                        backgroundColor: '#f0fdf4',
+                        border: '1px solid #86efac',
+                        color: '#166534',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        padding: '5px 10px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        width: 'fit-content'
+                      }}
+                    >
+                      <span>⚡</span>
+                      <span>View AI Match Breakdown (XAI)</span>
+                    </button>
                   )}
                 </div>
               ))}

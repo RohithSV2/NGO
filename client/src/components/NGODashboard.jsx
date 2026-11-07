@@ -17,7 +17,8 @@ export default function NGODashboard({
   ratings = [],
   ngos = [],
   onUpdateStatus,
-  onOpenAuth
+  onOpenAuth,
+  onOpenCertificate
 }) {
   // If user has a registered NGO name, default to that, else 'The Shimoga Multipurpose Social Service Society'
   const [activeNgoName, setActiveNgoName] = useState(
@@ -659,11 +660,35 @@ export default function NGODashboard({
                             <span>✓</span>
                             <span>Relief delivered & marked resolved by {activeNgoName}</span>
                           </span>
-                          {req.resolutionNotes && (
-                            <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
-                              "{req.resolutionNotes}"
-                            </span>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {req.resolutionNotes && (
+                              <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
+                                "{req.resolutionNotes}"
+                              </span>
+                            )}
+                            {onOpenCertificate && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenCertificate(req)}
+                                style={{
+                                  backgroundColor: '#f0fdf4',
+                                  border: '1px solid #16a34a',
+                                  color: '#166534',
+                                  padding: '5px 12px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px'
+                                }}
+                              >
+                                <span>📜</span>
+                                <span>Relief Certificate</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ) : req.status === 'In Progress' ? (
                         <div>

@@ -6,6 +6,10 @@ import NGODirectory from './components/NGODirectory';
 import RequestTracker from './components/RequestTracker';
 import NGODashboard from './components/NGODashboard';
 import RatingsSection from './components/RatingsSection';
+import DistrictAnalytics from './components/DistrictAnalytics';
+import VolunteerHub from './components/VolunteerHub';
+import XAIExplanationModal from './components/XAIExplanationModal';
+import ReliefCertificateModal from './components/ReliefCertificateModal';
 import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
 import { api } from './services/api';
@@ -18,6 +22,11 @@ function App() {
   const [ngos, setNgos] = useState([]);
   const [requests, setRequests] = useState([]);
   const [ratings, setRatings] = useState([]);
+  const [volunteers, setVolunteers] = useState(() => (api.getVolunteers ? api.getVolunteers() : []));
+
+  // Minor Project Module State: Explainable AI & Relief Certificate Modals
+  const [activeXAIModal, setActiveXAIModal] = useState(null);
+  const [activeCertificateRequest, setActiveCertificateRequest] = useState(null);
 
   // Review modal state triggered upon resolving an aid request
   const [reviewModalTarget, setReviewModalTarget] = useState(null);
@@ -29,14 +38,18 @@ function App() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ngosData, reqsData, ratingsData] = await Promise.all([
+        const [ngosData, reqsData, ratingsData, volsData] = await Promise.all([
           api.getNGOs(),
           api.getAidRequests(),
-          api.getRatings()
+          api.getRatings(),
+          api.getVolunteers ? api.getVolunteers() : []
         ]);
         setNgos(ngosData);
         setRequests(reqsData);
         setRatings(ratingsData);
+        if (volsData && volsData.length > 0) {
+          setVolunteers(volsData);
+        }
       } catch (err) {
         console.error('Data initialization error:', err);
       }
@@ -53,6 +66,14 @@ function App() {
 
   const handleRequestSubmitted = (newRequest) => {
     setRequests(prev => [newRequest, ...prev]);
+  };
+
+  const handleRegisterVolunteer = async (volunteerData) => {
+    const created = await api.registerVolunteer(volunteerData);
+    if (created) {
+      setVolunteers(prev => [created, ...prev]);
+    }
+    return created;
   };
 
   const handleUpdateStatus = async (id, status, notes = '') => {
@@ -353,6 +374,7 @@ function App() {
             }}
             onNavigateToTracker={() => setActiveTab('tracker')}
             ngos={ngos}
+            onOpenXAI={(match) => setActiveXAIModal(match)}
           />
         )}
 
@@ -360,6 +382,24 @@ function App() {
           <NGODirectory
             ngos={ngos}
             onDirectRequest={handleDirectRequest}
+          />
+        )}
+
+        {activeTab === 'analytics' && (
+          <DistrictAnalytics
+            ngos={ngos}
+            requests={requests}
+            onNavigateToDirectory={(district) => {
+              setActiveTab('directory');
+            }}
+          />
+        )}
+
+        {activeTab === 'volunteers' && (
+          <VolunteerHub
+            volunteers={volunteers}
+            onRegisterVolunteer={handleRegisterVolunteer}
+            user={user}
           />
         )}
 
@@ -373,6 +413,8 @@ function App() {
             onOpenReviewModal={handleOpenReviewModal}
             onNavigateToPostRequest={() => setActiveTab('request-aid')}
             onNavigateToNGOHub={() => setActiveTab('ngo-portal')}
+            onOpenXAI={(match) => setActiveXAIModal(match)}
+            onOpenCertificate={(req) => setActiveCertificateRequest(req)}
           />
         )}
 
@@ -384,6 +426,7 @@ function App() {
             ngos={ngos}
             onUpdateStatus={handleUpdateStatus}
             onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenCertificate={(req) => setActiveCertificateRequest(req)}
           />
         )}
 
@@ -397,6 +440,23 @@ function App() {
       </main>
 
       <Footer />
+
+      {/* Explainable AI (XAI) Modal */}
+      {activeXAIModal && (
+        <XAIExplanationModal
+          match={activeXAIModal}
+          onClose={() => setActiveXAIModal(null)}
+        />
+      )}
+
+      {/* Official Humanitarian Relief Certificate Modal */}
+      {activeCertificateRequest && (
+        <ReliefCertificateModal
+          request={activeCertificateRequest}
+          ratings={ratings}
+          onClose={() => setActiveCertificateRequest(null)}
+        />
+      )}
 
       {/* Review Feedback Modal */}
       {reviewModalTarget && (

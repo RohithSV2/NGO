@@ -10,6 +10,59 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || (
 const STORAGE_REQUESTS = 'ngo_app_requests';
 const STORAGE_RATINGS = 'ngo_app_ratings';
 const STORAGE_USER = 'ngo_app_user';
+const STORAGE_VOLUNTEERS = 'ngo_app_volunteers';
+
+export const INITIAL_VOLUNTEERS = [
+  {
+    id: 'vol_1',
+    name: 'Prajwal Kumar M',
+    phone: '9845112233',
+    email: 'prajwal.k@gmail.com',
+    district: 'Mysuru',
+    domain: 'Emergency Rescue & Evacuation',
+    availability: 'Immediate Emergency Standby',
+    experienceNotes: 'Civil defense trained volunteer with boat navigation experience in Kabini basin.',
+    createdAt: '2026-10-25T10:00:00Z'
+  },
+  {
+    id: 'vol_2',
+    name: 'Sahana Hegde',
+    phone: '9845223344',
+    email: 'sahana.h@gmail.com',
+    district: 'Shivamogga',
+    domain: 'First Aid & Paramedic Support',
+    availability: 'Immediate Emergency Standby',
+    experienceNotes: 'Nursing graduate volunteer with emergency trauma first aid experience.',
+    createdAt: '2026-10-26T12:30:00Z'
+  },
+  {
+    id: 'vol_3',
+    name: 'Kiran Basavaraj',
+    phone: '9741334455',
+    email: 'kiran.b@gmail.com',
+    district: 'Davanagere',
+    domain: 'Food Packing & Community Kitchens',
+    availability: 'Weekday Relief Operations',
+    experienceNotes: 'Organized student kitchen drives distributing cooked food to drought shelters.',
+    createdAt: '2026-10-27T14:15:00Z'
+  },
+  {
+    id: 'vol_4',
+    name: 'Deepak Nayak',
+    phone: '9880445566',
+    email: 'deepak.n@gmail.com',
+    district: 'Chitradurga',
+    domain: 'Logistics, Transport & Driving',
+    availability: 'Immediate Emergency Standby',
+    experienceNotes: '4-wheel drive owner available for rough terrain rural water delivery.',
+    createdAt: '2026-10-28T09:45:00Z'
+  }
+];
+
+// Initialize volunteers storage if empty
+if (!localStorage.getItem(STORAGE_VOLUNTEERS)) {
+  localStorage.setItem(STORAGE_VOLUNTEERS, JSON.stringify(INITIAL_VOLUNTEERS));
+}
 
 // Initialize and sanitize localStorage: remove any legacy mock requests from fake cities
 try {
@@ -385,6 +438,49 @@ export const api = {
     const all = JSON.parse(localStorage.getItem(STORAGE_RATINGS) || '[]');
     if (ngoId) return all.filter(r => String(r.ngoId) === String(ngoId));
     return all;
+  },
+
+  // Get all registered volunteers
+  async getVolunteers() {
+    try {
+      const res = await fetch(`${API_BASE}/volunteers`);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.data) && json.data.length > 0) {
+          localStorage.setItem(STORAGE_VOLUNTEERS, JSON.stringify(json.data));
+          return json.data;
+        }
+      }
+    } catch (e) {
+      // Offline fallback
+    }
+    return JSON.parse(localStorage.getItem(STORAGE_VOLUNTEERS) || '[]');
+  },
+
+  // Register a new volunteer
+  async registerVolunteer(volunteerData) {
+    const newVol = {
+      id: 'vol_' + Date.now(),
+      ...volunteerData,
+      createdAt: new Date().toISOString()
+    };
+    try {
+      const res = await fetch(`${API_BASE}/volunteers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newVol)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data;
+      }
+    } catch (e) {
+      // Offline fallback
+    }
+    const current = JSON.parse(localStorage.getItem(STORAGE_VOLUNTEERS) || '[]');
+    current.unshift(newVol);
+    localStorage.setItem(STORAGE_VOLUNTEERS, JSON.stringify(current));
+    return newVol;
   },
 
   // Local user authentication state
