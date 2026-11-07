@@ -11,6 +11,48 @@ const STORAGE_REQUESTS = 'ngo_app_requests';
 const STORAGE_RATINGS = 'ngo_app_ratings';
 const STORAGE_USER = 'ngo_app_user';
 const STORAGE_VOLUNTEERS = 'ngo_app_volunteers';
+const STORAGE_NOTIFICATIONS = 'ngo_app_notifications';
+
+export const DISTRICT_COORDS = {
+  Mysuru: { lat: 12.2958, lng: 76.6394 },
+  Shivamogga: { lat: 13.9299, lng: 75.5681 },
+  Davanagere: { lat: 14.4644, lng: 75.9218 },
+  Chitradurga: { lat: 14.2287, lng: 76.3996 }
+};
+
+export const INITIAL_NOTIFICATIONS = [
+  {
+    id: 'notif_1',
+    title: 'Critical Water Need in Chitradurga',
+    message: 'Basavaraj Patil reported drought water scarcity. Vivekananda Rural Dev Society dispatched a relief tanker.',
+    urgency: 'Critical',
+    district: 'Chitradurga',
+    time: '10 mins ago',
+    read: false
+  },
+  {
+    id: 'notif_2',
+    title: 'Responders Dispatched in Mysuru',
+    message: 'YOUTH EFFORTS FOR SOCIETY TRUST accepted distress request #req_104. ETA: 30 minutes.',
+    urgency: 'High',
+    district: 'Mysuru',
+    time: '25 mins ago',
+    read: false
+  },
+  {
+    id: 'notif_3',
+    title: 'Relief Delivered & OTP Verified',
+    message: 'School study kits in Davanagere verified by citizen using OTP #7319.',
+    urgency: 'Normal',
+    district: 'Davanagere',
+    time: '1 hour ago',
+    read: true
+  }
+];
+
+if (!localStorage.getItem(STORAGE_NOTIFICATIONS)) {
+  localStorage.setItem(STORAGE_NOTIFICATIONS, JSON.stringify(INITIAL_NOTIFICATIONS));
+}
 
 export const INITIAL_VOLUNTEERS = [
   {
@@ -310,9 +352,17 @@ export const api = {
       });
     }
 
+    const cityCoords = DISTRICT_COORDS[requestData.city] || { lat: 12.2958, lng: 76.6394 };
+    const jitterLat = Number((cityCoords.lat + (Math.random() - 0.5) * 0.04).toFixed(4));
+    const jitterLng = Number((cityCoords.lng + (Math.random() - 0.5) * 0.04).toFixed(4));
+    const resolutionOtp = String(Math.floor(1000 + Math.random() * 9000));
+
     const newRequest = {
       _id: 'req_' + Date.now(),
       ...requestData,
+      lat: requestData.lat || jitterLat,
+      lng: requestData.lng || jitterLng,
+      resolutionOtp: requestData.resolutionOtp || resolutionOtp,
       targetNgoName: directTargetName || null,
       isDirectRequest: Boolean(directTargetName || requestData.isDirectRequest),
       status: formattedMatches.length > 0 ? 'Matched' : 'Pending',
@@ -323,6 +373,17 @@ export const api = {
     const current = JSON.parse(localStorage.getItem(STORAGE_REQUESTS) || '[]');
     current.unshift(newRequest);
     localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(current));
+
+    // Register live notification
+    try {
+      this.addNotification({
+        title: `🚨 New ${requestData.urgency || 'High'} Need: ${requestData.city || 'Karnataka'}`,
+        message: `${requestData.title || 'Aid request'} submitted by ${requestData.requesterName || 'Citizen'}.`,
+        urgency: requestData.urgency || 'High',
+        district: requestData.city || 'Karnataka'
+      });
+    } catch (e) {}
+
     return newRequest;
   },
 
@@ -341,12 +402,12 @@ export const api = {
   },
 
   // Update Request status
-  async updateRequestStatus(id, status, notes = '') {
+  async updateRequestStatus(id, status, notes = '', extraData = {}) {
     try {
       const res = await fetch(`${API_BASE}/requests/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, resolutionNotes: notes })
+        body: JSON.stringify({ status, resolutionNotes: notes, ...extraData })
       });
       if (res.ok) {
         const json = await res.json();
@@ -362,7 +423,30 @@ export const api = {
       current[idx].status = status;
       if (status === 'Resolved') current[idx].resolvedAt = new Date().toISOString();
       if (notes) current[idx].resolutionNotes = notes;
+      if (extraData && typeof extraData === 'object') {
+        Object.assign(current[idx], extraData);
+      }
       localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(current));
+
+      // Trigger notification for status changes
+      try {
+        if (status === 'In Progress') {
+          this.addNotification({
+            title: `🚚 Relief Mission Dispatched (${current[idx].city})`,
+            message: `Field team dispatched for "${current[idx].title}". ${extraData.etaMinutes ? `ETA: ${extraData.etaMinutes} mins.` : ''}`,
+            urgency: 'High',
+            district: current[idx].city
+          });
+        } else if (status === 'Resolved') {
+          this.addNotification({
+            title: `✅ Mission Resolved & OTP Verified (${current[idx].city})`,
+            message: `Assistance delivered for "${current[idx].title}". Citizen verified resolution.`,
+            urgency: 'Normal',
+            district: current[idx].city
+          });
+        }
+      } catch (e) {}
+
       return current[idx];
     }
     return null;
@@ -494,5 +578,34 @@ export const api = {
     } else {
       localStorage.removeItem(STORAGE_USER);
     }
+  },
+
+  // Notification Feed System
+  getNotifications() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_NOTIFICATIONS) || '[]');
+      return data.length > 0 ? data : INITIAL_NOTIFICATIONS;
+    } catch (e) {
+      return INITIAL_NOTIFICATIONS;
+    }
+  },
+
+  addNotification(notif) {
+    const current = this.getNotifications();
+    const item = {
+      id: 'notif_' + Date.now(),
+      time: 'Just now',
+      read: false,
+      ...notif
+    };
+    current.unshift(item);
+    localStorage.setItem(STORAGE_NOTIFICATIONS, JSON.stringify(current));
+    return item;
+  },
+
+  markNotificationsRead() {
+    const current = this.getNotifications().map(n => ({ ...n, read: true }));
+    localStorage.setItem(STORAGE_NOTIFICATIONS, JSON.stringify(current));
+    return current;
   }
 };

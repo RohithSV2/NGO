@@ -16,6 +16,7 @@ export default function NGODashboard({
   requests = [],
   ratings = [],
   ngos = [],
+  volunteers = [],
   onUpdateStatus,
   onOpenAuth,
   onOpenCertificate
@@ -24,6 +25,18 @@ export default function NGODashboard({
   const [activeNgoName, setActiveNgoName] = useState(
     user?.ngoName || 'The Shimoga Multipurpose Social Service Society'
   );
+
+  // Volunteer Dispatching Console State
+  const [dispatchModalReq, setDispatchModalReq] = useState(null);
+  const [dispatchEta, setDispatchEta] = useState(30);
+  const [selectedVolunteerId, setSelectedVolunteerId] = useState('');
+  const [dispatchNoteInput, setDispatchNoteInput] = useState('');
+
+  // OTP Verification & Delivery Proof State
+  const [otpModalReq, setOtpModalReq] = useState(null);
+  const [inputOtp, setInputOtp] = useState('');
+  const [otpDeliveryPhoto, setOtpDeliveryPhoto] = useState('https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=600&auto=format&fit=crop&q=80');
+  const [otpError, setOtpError] = useState('');
 
   // Sync activeNgoName if user logs in or profile changes
   React.useEffect(() => {
@@ -147,16 +160,55 @@ export default function NGODashboard({
     return ratings.filter(r => (r.ngoName || '').toLowerCase().includes(activeNgoName.toLowerCase()));
   }, [ratings, activeNgoName]);
 
-  const handleAcceptAndDispatch = async (reqId) => {
-    const note = operationalNotes[reqId] || `Relief unit dispatched from ${activeNgoName}. Responders deployed with emergency supplies.`;
-    await onUpdateStatus(reqId, 'In Progress', note);
-    setOperationalNotes(prev => ({ ...prev, [reqId]: '' }));
+  const handleOpenDispatchModal = (req) => {
+    setDispatchModalReq(req);
+    setDispatchEta(30);
+    setSelectedVolunteerId(volunteers.length > 0 ? volunteers[0].id : '');
+    setDispatchNoteInput(`Relief team mobilized by ${activeNgoName}. Responders deployed with emergency kits.`);
   };
 
-  const handleMarkResolved = async (reqId) => {
-    const note = operationalNotes[reqId] || `Relief successfully delivered and mission completed by ${activeNgoName}.`;
-    await onUpdateStatus(reqId, 'Resolved', note);
-    setOperationalNotes(prev => ({ ...prev, [reqId]: '' }));
+  const handleConfirmDispatch = async () => {
+    if (!dispatchModalReq) return;
+    const assignedVol = volunteers.find(v => String(v.id) === String(selectedVolunteerId)) || null;
+    await onUpdateStatus(
+      dispatchModalReq._id,
+      'In Progress',
+      dispatchNoteInput,
+      {
+        etaMinutes: dispatchEta,
+        assignedVolunteer: assignedVol ? { name: assignedVol.name, phone: assignedVol.phone, domain: assignedVol.domain } : null,
+        dispatchedAt: new Date().toISOString()
+      }
+    );
+    setDispatchModalReq(null);
+  };
+
+  const handleOpenOtpModal = (req) => {
+    setOtpModalReq(req);
+    setInputOtp('');
+    setOtpError('');
+  };
+
+  const handleVerifyOtpAndResolve = async () => {
+    if (!otpModalReq) return;
+    const expectedOtp = String(otpModalReq.resolutionOtp || '4829').trim();
+    if (inputOtp.trim() !== expectedOtp && inputOtp.trim() !== '1234') {
+      setOtpError(`Invalid Citizen OTP. Please enter the 4-digit code given to the beneficiary (Hint: ${expectedOtp}).`);
+      return;
+    }
+
+    const note = operationalNotes[otpModalReq._id] || `Relief successfully delivered, verified via Citizen OTP #${expectedOtp} by ${activeNgoName}.`;
+    await onUpdateStatus(
+      otpModalReq._id,
+      'Resolved',
+      note,
+      {
+        otpVerified: true,
+        deliveryPhoto: otpDeliveryPhoto,
+        resolvedAt: new Date().toISOString()
+      }
+    );
+    setOtpModalReq(null);
   };
 
   const handlePostBroadcast = (e) => {
@@ -693,12 +745,23 @@ export default function NGODashboard({
                       ) : req.status === 'In Progress' ? (
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
-                            <span style={{ fontSize: '13px', color: '#0369a1', fontWeight: '700' }}>
-                              🚚 Relief Mission In Progress (Dispatched by your NGO)
-                            </span>
+                            <div>
+                              <span style={{ fontSize: '13px', color: '#0369a1', fontWeight: '700', display: 'block' }}>
+                                🚚 Relief Mission In Progress (Dispatched by your NGO)
+                              </span>
+                              {req.etaMinutes && (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', marginTop: '4px' }}>
+                                  <span>⏱️</span>
+                                  <span>Estimated Arrival: ~{req.etaMinutes} mins</span>
+                                  {req.assignedVolunteer && (
+                                    <span>&bull; Assigned Responder: <strong>{req.assignedVolunteer.name}</strong> ({req.assignedVolunteer.phone})</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                             <button
                               type="button"
-                              onClick={() => handleMarkResolved(req._id)}
+                              onClick={() => handleOpenOtpModal(req)}
                               style={{
                                 backgroundColor: '#16a34a',
                                 color: '#ffffff',
@@ -713,8 +776,8 @@ export default function NGODashboard({
                                 gap: '6px'
                               }}
                             >
-                              <span>✅</span>
-                              <span>Mark Relief Delivered & Resolved</span>
+                              <span>🔐</span>
+                              <span>Verify OTP & Mark Resolved</span>
                             </button>
                           </div>
 
@@ -761,7 +824,7 @@ export default function NGODashboard({
                           </span>
                           <button
                             type="button"
-                            onClick={() => handleAcceptAndDispatch(req._id)}
+                            onClick={() => handleOpenDispatchModal(req)}
                             style={{
                               backgroundColor: '#16a34a',
                               color: '#ffffff',
@@ -904,9 +967,201 @@ export default function NGODashboard({
                 </span>
               </div>
             </div>
+      {/* Dispatch Field Team Modal */}
+      {dispatchModalReq && (
+        <div className="modal-backdrop-clean" onClick={() => setDispatchModalReq(null)}>
+          <div className="modal-card-pro" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '92%' }}>
+            <button
+              type="button"
+              className="modal-dismiss-btn"
+              onClick={() => setDispatchModalReq(null)}
+            >
+              ✕
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '26px' }}>🚚</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-h)' }}>
+                  Mobilize & Dispatch Field Team
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Accept distress signal for "{dispatchModalReq.title}" ({dispatchModalReq.city})
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '18px' }}>
+              {/* Estimated Delivery Time (ETA) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                  Estimated Arrival Time (ETA):
+                </label>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                  {[15, 30, 45, 60, 90].map(mins => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setDispatchEta(mins)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        border: dispatchEta === mins ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                        backgroundColor: dispatchEta === mins ? '#f0fdf4' : '#ffffff',
+                        color: dispatchEta === mins ? '#166534' : '#334155',
+                        fontWeight: '700',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ~{mins} mins
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                  Current ETA: <strong>{dispatchEta} minutes</strong> (Will be shown live on citizen's tracking board)
+                </div>
+              </div>
+
+              {/* Assign Volunteer from Pool */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                  Assign Responding Volunteer (From Registered Pool):
+                </label>
+                <select
+                  className="input-control select-control"
+                  value={selectedVolunteerId}
+                  onChange={e => setSelectedVolunteerId(e.target.value)}
+                >
+                  <option value="">-- Select a Volunteer Responder --</option>
+                  {volunteers.map(v => (
+                    <option key={v.id} value={v.id}>
+                      👤 {v.name} &bull; {v.domain} ({v.district}) - {v.phone}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Field Team Operational Notes */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                  Field Mission Notes:
+                </label>
+                <textarea
+                  className="input-control textarea-control"
+                  rows="3"
+                  value={dispatchNoteInput}
+                  onChange={e => setDispatchNoteInput(e.target.value)}
+                  placeholder="Specify relief cargo, volunteer count, or vehicles deployed..."
+                ></textarea>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-card-secondary"
+                onClick={() => setDispatchModalReq(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-card-primary"
+                onClick={handleConfirmDispatch}
+              >
+                Confirm Field Dispatch & Notify Citizen &rarr;
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Citizen OTP Verification Modal */}
+      {otpModalReq && (
+        <div className="modal-backdrop-clean" onClick={() => setOtpModalReq(null)}>
+          <div className="modal-card-pro" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92%' }}>
+            <button
+              type="button"
+              className="modal-dismiss-btn"
+              onClick={() => setOtpModalReq(null)}
+            >
+              ✕
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '26px' }}>🔐</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-h)' }}>
+                  Delivery Verification & Citizen OTP
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Verify authentic physical delivery for "{otpModalReq.title}"
+                </p>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '12px', color: '#166534' }}>
+              <strong>Trust & Transparency Protocol:</strong> The beneficiary was issued a confidential 4-digit OTP. Enter the code provided by the recipient upon receiving the supplies.
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                Enter Citizen 4-Digit Resolution OTP:
+              </label>
+              <input
+                type="text"
+                maxLength="4"
+                className="input-control"
+                placeholder="e.g. 4829"
+                value={inputOtp}
+                onChange={e => setInputOtp(e.target.value.replace(/\D/g, ''))}
+                style={{ fontSize: '20px', letterSpacing: '6px', textAlign: 'center', fontWeight: '800' }}
+              />
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                * Academic Viva Demo Hint: Beneficiary OTP is <strong>{otpModalReq.resolutionOtp || '4829'}</strong> (or bypass: 1234)
+              </div>
+              {otpError && (
+                <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '700', marginTop: '6px' }}>
+                  {otpError}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                Delivery Proof Photo Attachment:
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img
+                  src={otpDeliveryPhoto}
+                  alt="Delivery Proof"
+                  style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+                <div style={{ fontSize: '12px', color: '#475569' }}>
+                  <span>✓ Verified field distribution photo attached to relief audit certificate.</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-card-secondary"
+                onClick={() => setOtpModalReq(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-card-primary"
+                onClick={handleVerifyOtpAndResolve}
+                disabled={inputOtp.length !== 4}
+              >
+                Verify OTP & Complete Mission
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

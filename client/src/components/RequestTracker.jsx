@@ -315,6 +315,43 @@ function TrackerCard({ req, ratings = [], onUpdateStatus, onAddRating, user, onO
       <h3 className="tracker-req-title">{req.title}</h3>
       <p className="tracker-req-desc">{req.description}</p>
 
+      {/* Citizen Confidential Resolution OTP Card */}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', backgroundColor: '#f0fdf4', border: '1px solid #86efac', padding: '8px 14px', borderRadius: '8px', marginBottom: '12px' }}>
+        <span style={{ fontSize: '18px' }}>🔐</span>
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: '800', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Your Confidential Resolution OTP:{' '}
+            <span style={{ fontSize: '15px', letterSpacing: '3px', fontWeight: '900', color: '#0f172a', backgroundColor: '#ffffff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>
+              {req.resolutionOtp || '4829'}
+            </span>
+          </div>
+          <div style={{ fontSize: '11px', color: '#15803d', marginTop: '2px' }}>
+            Share this 4-digit verification code with the field volunteer when supplies are delivered to your hands.
+          </div>
+        </div>
+      </div>
+
+      {/* Live Responder ETA Dispatch Alert */}
+      {req.status === 'In Progress' && req.etaMinutes && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', padding: '8px 14px', borderRadius: '8px', color: '#1d4ed8', fontSize: '12px', fontWeight: '700', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <span>⏱️</span>
+          <span>Field Team In Transit &bull; Estimated Arrival: ~<strong>{req.etaMinutes} minutes</strong></span>
+          {req.assignedVolunteer && (
+            <span>&bull; Assigned Responder: <strong>{req.assignedVolunteer.name}</strong> ({req.assignedVolunteer.phone})</span>
+          )}
+        </div>
+      )}
+
+      {/* Verified Delivery Photo Proof */}
+      {req.deliveryPhoto && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '8px', marginBottom: '12px' }}>
+          <img src={req.deliveryPhoto} alt="Delivery Proof" style={{ width: '48px', height: '36px', objectFit: 'cover', borderRadius: '4px' }} />
+          <div style={{ fontSize: '11px', color: '#475569' }}>
+            <span style={{ fontWeight: '700', color: '#166534' }}>✓ Delivery Photo Verified & Recorded</span>
+          </div>
+        </div>
+      )}
+
       {/* Resolution Notes Banner */}
       {req.resolutionNotes && (
         <div

@@ -8,6 +8,8 @@ import NGODashboard from './components/NGODashboard';
 import RatingsSection from './components/RatingsSection';
 import DistrictAnalytics from './components/DistrictAnalytics';
 import VolunteerHub from './components/VolunteerHub';
+import LiveReliefMap from './components/LiveReliefMap';
+import IncidentReportModal from './components/IncidentReportModal';
 import XAIExplanationModal from './components/XAIExplanationModal';
 import ReliefCertificateModal from './components/ReliefCertificateModal';
 import AuthModal from './components/AuthModal';
@@ -23,10 +25,12 @@ function App() {
   const [requests, setRequests] = useState([]);
   const [ratings, setRatings] = useState([]);
   const [volunteers, setVolunteers] = useState(() => (api.getVolunteers ? api.getVolunteers() : []));
+  const [notifications, setNotifications] = useState(() => (api.getNotifications ? api.getNotifications() : []));
 
-  // Minor Project Module State: Explainable AI & Relief Certificate Modals
+  // Minor Project Module State: Explainable AI, Relief Certificate & Incident Report Modals
   const [activeXAIModal, setActiveXAIModal] = useState(null);
   const [activeCertificateRequest, setActiveCertificateRequest] = useState(null);
+  const [activeIncidentReport, setActiveIncidentReport] = useState(false);
 
   // Review modal state triggered upon resolving an aid request
   const [reviewModalTarget, setReviewModalTarget] = useState(null);
@@ -76,10 +80,20 @@ function App() {
     return created;
   };
 
-  const handleUpdateStatus = async (id, status, notes = '') => {
-    const updated = await api.updateRequestStatus(id, status, notes);
+  const handleUpdateStatus = async (id, status, notes = '', extraData = {}) => {
+    const updated = await api.updateRequestStatus(id, status, notes, extraData);
     if (updated) {
       setRequests(prev => prev.map(r => (r._id === id ? { ...r, ...updated } : r)));
+      if (api.getNotifications) {
+        setNotifications(api.getNotifications());
+      }
+    }
+  };
+
+  const handleMarkNotificationsRead = () => {
+    if (api.markNotificationsRead) {
+      const updated = api.markNotificationsRead();
+      setNotifications(updated);
     }
   };
 
@@ -145,6 +159,8 @@ function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         user={user}
+        notifications={notifications}
+        onMarkNotificationsRead={handleMarkNotificationsRead}
         onOpenAuth={() => setIsAuthOpen(true)}
         onLogout={() => {
           api.setCurrentUser(null);
@@ -374,7 +390,18 @@ function App() {
             }}
             onNavigateToTracker={() => setActiveTab('tracker')}
             ngos={ngos}
+            requests={requests}
             onOpenXAI={(match) => setActiveXAIModal(match)}
+          />
+        )}
+
+        {activeTab === 'map' && (
+          <LiveReliefMap
+            requests={requests}
+            ngos={ngos}
+            onNavigateToPostRequest={() => setActiveTab('request-aid')}
+            onDirectRequest={handleDirectRequest}
+            onNavigateToTracker={() => setActiveTab('tracker')}
           />
         )}
 
@@ -389,6 +416,8 @@ function App() {
           <DistrictAnalytics
             ngos={ngos}
             requests={requests}
+            ratings={ratings}
+            onOpenIncidentReport={() => setActiveIncidentReport(true)}
             onNavigateToDirectory={(district) => {
               setActiveTab('directory');
             }}
@@ -424,6 +453,7 @@ function App() {
             requests={requests}
             ratings={ratings}
             ngos={ngos}
+            volunteers={volunteers}
             onUpdateStatus={handleUpdateStatus}
             onOpenAuth={() => setIsAuthOpen(true)}
             onOpenCertificate={(req) => setActiveCertificateRequest(req)}
@@ -455,6 +485,15 @@ function App() {
           request={activeCertificateRequest}
           ratings={ratings}
           onClose={() => setActiveCertificateRequest(null)}
+        />
+      )}
+
+      {/* Official SDMA Incident Report Modal */}
+      {activeIncidentReport && (
+        <IncidentReportModal
+          requests={requests}
+          ngos={ngos}
+          onClose={() => setActiveIncidentReport(false)}
         />
       )}
 
