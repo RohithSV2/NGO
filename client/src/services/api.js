@@ -12,6 +12,130 @@ const STORAGE_RATINGS = 'ngo_app_ratings';
 const STORAGE_USER = 'ngo_app_user';
 const STORAGE_VOLUNTEERS = 'ngo_app_volunteers';
 const STORAGE_NOTIFICATIONS = 'ngo_app_notifications';
+const STORAGE_STOCKPILES = 'ngo_app_stockpiles';
+const STORAGE_PLEDGES = 'ngo_app_pledges';
+
+export const INITIAL_STOCKPILES = {
+  'The Shimoga Multipurpose Social Service Society': [
+    { id: 'item_1', name: 'Cooked Meal & Dry Ration Kits', category: 'Food & Nutrition', available: 450, capacity: 600, unit: 'kits', committed: 45, reorderLevel: 100 },
+    { id: 'item_2', name: 'Water Purification Tablets & 20L Cans', category: 'Water & Sanitation', available: 220, capacity: 300, unit: 'cans', committed: 30, reorderLevel: 50 },
+    { id: 'item_3', name: 'First Aid Trauma Emergency Kits', category: 'Medical & Healthcare', available: 85, capacity: 100, unit: 'kits', committed: 10, reorderLevel: 25 },
+    { id: 'item_4', name: 'Inflatable River Rescue Boats', category: 'Disaster Equipment', available: 6, capacity: 10, unit: 'boats', committed: 1, reorderLevel: 2 },
+    { id: 'item_5', name: 'High-Buoyancy Life Jackets', category: 'Disaster Equipment', available: 120, capacity: 150, unit: 'jackets', committed: 20, reorderLevel: 30 },
+    { id: 'item_6', name: 'Emergency Patient Ambulances', category: 'Transport', available: 4, capacity: 5, unit: 'vehicles', committed: 1, reorderLevel: 1 }
+  ],
+  'Vivekananda Rural Development Society': [
+    { id: 'item_1', name: 'Drought Dry Grocery & Ration Kits', category: 'Food & Nutrition', available: 320, capacity: 500, unit: 'kits', committed: 25, reorderLevel: 80 },
+    { id: 'item_2', name: '5000L Emergency Water Tankers', category: 'Water & Sanitation', available: 5, capacity: 8, unit: 'tankers', committed: 1, reorderLevel: 2 },
+    { id: 'item_3', name: 'Potable Drinking Water Cans (20L)', category: 'Water & Sanitation', available: 380, capacity: 500, unit: 'cans', committed: 40, reorderLevel: 100 },
+    { id: 'item_4', name: 'Drought Resilient Agricultural Seed Packs', category: 'Rural Livelihood', available: 150, capacity: 200, unit: 'packs', committed: 0, reorderLevel: 40 },
+    { id: 'item_5', name: 'Emergency Trauma & Paramedic Packs', category: 'Medical & Healthcare', available: 40, capacity: 60, unit: 'kits', committed: 5, reorderLevel: 15 },
+    { id: 'item_6', name: 'All-Terrain 4WD Field Pickup Trucks', category: 'Transport', available: 6, capacity: 8, unit: 'vehicles', committed: 2, reorderLevel: 2 }
+  ],
+  'Yashaswini mahila educational & rural development trust': [
+    { id: 'item_1', name: 'Primary Student Educational Kits', category: 'Education & Literacy', available: 240, capacity: 300, unit: 'kits', committed: 35, reorderLevel: 50 },
+    { id: 'item_2', name: 'Warm Winter Blankets & Sweaters', category: 'Shelter & Clothing', available: 310, capacity: 400, unit: 'blankets', committed: 40, reorderLevel: 80 },
+    { id: 'item_3', name: 'Nutritional Dry Food Ration Packs', category: 'Food & Nutrition', available: 180, capacity: 250, unit: 'kits', committed: 15, reorderLevel: 40 },
+    { id: 'item_4', name: 'Women Hygiene & Sanitary Kits', category: 'Hygiene & Health', available: 260, capacity: 350, unit: 'kits', committed: 20, reorderLevel: 50 },
+    { id: 'item_5', name: 'First Aid Medical Supply Boxes', category: 'Medical & Healthcare', available: 55, capacity: 80, unit: 'boxes', committed: 5, reorderLevel: 15 },
+    { id: 'item_6', name: 'Student Logistics Passenger Minivans', category: 'Transport', available: 3, capacity: 4, unit: 'vehicles', committed: 1, reorderLevel: 1 }
+  ],
+  'YOUTH EFFORTS FOR SOCIETY TRUST': [
+    { id: 'item_1', name: 'Hot Cooked Meal Packets', category: 'Food & Nutrition', available: 650, capacity: 800, unit: 'packets', committed: 120, reorderLevel: 150 },
+    { id: 'item_2', name: 'Bottled Mineral Water Carton Boxes', category: 'Water & Sanitation', available: 400, capacity: 500, unit: 'boxes', committed: 50, reorderLevel: 100 },
+    { id: 'item_3', name: 'Senior Citizen Mobility & Wheelchairs', category: 'Aged / Special Care', available: 45, capacity: 60, unit: 'units', committed: 4, reorderLevel: 10 },
+    { id: 'item_4', name: 'Medical Grade Oxygen Cylinders (10L)', category: 'Medical & Healthcare', available: 28, capacity: 40, unit: 'cylinders', committed: 2, reorderLevel: 8 },
+    { id: 'item_5', name: 'First Aid Emergency Trauma Bags', category: 'Medical & Healthcare', available: 95, capacity: 120, unit: 'bags', committed: 12, reorderLevel: 25 },
+    { id: 'item_6', name: 'Disaster Relief Mobile Kitchen Vans', category: 'Transport', available: 5, capacity: 6, unit: 'vans', committed: 1, reorderLevel: 1 }
+  ]
+};
+
+export const INITIAL_PLEDGES = [
+  {
+    id: 'pledge_1',
+    donorName: 'Dr. Arvind Rao (Alumni, NIE Mysuru)',
+    donorType: 'Alumni Partner',
+    phone: '9845011223',
+    email: 'arvind.rao@alumni.nie.ac.in',
+    district: 'Mysuru',
+    targetNGO: 'YOUTH EFFORTS FOR SOCIETY TRUST',
+    commodity: 'Hot Cooked Meal Packets',
+    quantity: 150,
+    unit: 'packets',
+    pledgeAmount: '₹ 15,000',
+    campaign: 'Monsoon Low-Lying Riverside Shelter Support',
+    status: 'Delivered & Verified',
+    linkedRequestId: 'req_104',
+    otpAuditRef: 'AC-KAR-REQ104-2026',
+    message: 'Proud alumnus of NIE Mysuru supporting community kitchens in Chamundi foothills low-lying areas.',
+    createdAt: '2026-10-27T11:00:00Z'
+  },
+  {
+    id: 'pledge_2',
+    donorName: 'Kavitha Suresh',
+    donorType: 'Citizen Philanthropist',
+    phone: '9845332211',
+    email: 'kavitha.s@gmail.com',
+    district: 'Shivamogga',
+    targetNGO: 'The Shimoga Multipurpose Social Service Society',
+    commodity: 'Water Purification Tablets & 20L Cans',
+    quantity: 100,
+    unit: 'cans',
+    pledgeAmount: '₹ 12,500',
+    campaign: 'Tunga River Flood Emergency Relief Drive',
+    status: 'Warehouse Ready',
+    linkedRequestId: 'req_101',
+    otpAuditRef: 'AC-KAR-REQ101-2026',
+    message: 'Standing in solidarity with riverside farming families in flood-affected taluks.',
+    createdAt: '2026-10-28T16:00:00Z'
+  },
+  {
+    id: 'pledge_3',
+    donorName: 'Chitradurga Youth Welfare Association',
+    donorType: 'Community Foundation',
+    phone: '9741224466',
+    email: 'contact@cywa-karnataka.org',
+    district: 'Chitradurga',
+    targetNGO: 'Vivekananda Rural Development Society',
+    commodity: 'Potable Drinking Water Cans (20L)',
+    quantity: 80,
+    unit: 'cans',
+    pledgeAmount: '₹ 8,000',
+    campaign: 'Rural Taluk Drought & Water Tanker Drive',
+    status: 'Dispatched to Field',
+    linkedRequestId: 'req_102',
+    otpAuditRef: 'AC-KAR-REQ102-2026',
+    message: 'Ensuring clean drinking water for rural drought-affected families and cattle shelters.',
+    createdAt: '2026-10-29T10:15:00Z'
+  },
+  {
+    id: 'pledge_4',
+    donorName: 'Davanagere Cotton Merchants Trust',
+    donorType: 'Corporate Partner',
+    phone: '9880112244',
+    email: 'csr@davanagerecotton.com',
+    district: 'Davanagere',
+    targetNGO: 'Yashaswini mahila educational & rural development trust',
+    commodity: 'Warm Winter Blankets & Sweaters',
+    quantity: 120,
+    unit: 'blankets',
+    pledgeAmount: '₹ 18,000',
+    campaign: 'Rural Primary Student Educational Aid',
+    status: 'Delivered & Verified',
+    linkedRequestId: 'req_103',
+    otpAuditRef: 'AC-KAR-REQ103-2026',
+    message: 'Empowering rural primary school children with study stationery and winter warmth.',
+    createdAt: '2026-10-29T14:30:00Z'
+  }
+];
+
+if (!localStorage.getItem(STORAGE_STOCKPILES)) {
+  localStorage.setItem(STORAGE_STOCKPILES, JSON.stringify(INITIAL_STOCKPILES));
+}
+
+if (!localStorage.getItem(STORAGE_PLEDGES)) {
+  localStorage.setItem(STORAGE_PLEDGES, JSON.stringify(INITIAL_PLEDGES));
+}
 
 export const DISTRICT_COORDS = {
   Mysuru: { lat: 12.2958, lng: 76.6394 },
@@ -607,5 +731,113 @@ export const api = {
     const current = this.getNotifications().map(n => ({ ...n, read: true }));
     localStorage.setItem(STORAGE_NOTIFICATIONS, JSON.stringify(current));
     return current;
+  },
+
+  // Stockpile & Inventory Matrix Methods
+  getStockpiles() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_STOCKPILES) || 'null');
+      return data || INITIAL_STOCKPILES;
+    } catch (e) {
+      return INITIAL_STOCKPILES;
+    }
+  },
+
+  updateStockpileItem(ngoName, itemId, newAvailable) {
+    const stockpiles = this.getStockpiles();
+    const list = stockpiles[ngoName] || [];
+    const item = list.find(i => i.id === itemId);
+    if (item) {
+      item.available = Math.max(0, Math.min(item.capacity, Number(newAvailable)));
+      localStorage.setItem(STORAGE_STOCKPILES, JSON.stringify(stockpiles));
+    }
+    return stockpiles;
+  },
+
+  deductStockpileForMission(ngoName, category, qty = 15) {
+    const stockpiles = this.getStockpiles();
+    const list = stockpiles[ngoName] || [];
+    if (list.length === 0) return stockpiles;
+
+    const catLower = (category || '').toLowerCase();
+    let targetItem = list.find(i => catLower.includes(i.category.toLowerCase()) || i.category.toLowerCase().includes(catLower));
+    if (!targetItem) targetItem = list[0];
+
+    if (targetItem) {
+      targetItem.available = Math.max(0, targetItem.available - qty);
+      targetItem.committed = (targetItem.committed || 0) + qty;
+      localStorage.setItem(STORAGE_STOCKPILES, JSON.stringify(stockpiles));
+    }
+    return stockpiles;
+  },
+
+  replenishStockpileFromPledge(ngoName, commodityName, qty) {
+    const stockpiles = this.getStockpiles();
+    const list = stockpiles[ngoName] || [];
+    const item = list.find(i => i.name.toLowerCase().includes(commodityName.toLowerCase()) || commodityName.toLowerCase().includes(i.name.toLowerCase()));
+    if (item) {
+      item.available = Math.min(item.capacity, item.available + Number(qty));
+      localStorage.setItem(STORAGE_STOCKPILES, JSON.stringify(stockpiles));
+    }
+    return stockpiles;
+  },
+
+  calculateKnapsackCoverage(ngoName, requestedCategory) {
+    const stockpiles = this.getStockpiles();
+    const list = stockpiles[ngoName] || [];
+    if (list.length === 0) return { score: 92, status: 'Adequate', available: 100, needed: 30, unit: 'kits' };
+
+    const catLower = (requestedCategory || '').toLowerCase();
+    const targetItem = list.find(i => catLower.includes(i.category.toLowerCase()) || i.category.toLowerCase().includes(catLower)) || list[0];
+
+    const requestedQty = 30;
+    const coverageRatio = Math.min(1.0, targetItem.available / requestedQty);
+    const score = Math.round(coverageRatio * 100);
+
+    return {
+      score,
+      commodityName: targetItem.name,
+      available: targetItem.available,
+      needed: requestedQty,
+      unit: targetItem.unit,
+      status: score >= 90 ? 'High Stock' : (score >= 50 ? 'Moderate' : 'Critical Restock Needed')
+    };
+  },
+
+  // Community Relief Pledge Ledger Methods
+  getPledges() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_PLEDGES) || 'null');
+      return data && data.length > 0 ? data : INITIAL_PLEDGES;
+    } catch (e) {
+      return INITIAL_PLEDGES;
+    }
+  },
+
+  createPledge(pledgeData) {
+    const current = this.getPledges();
+    const newPledge = {
+      id: 'pledge_' + Date.now(),
+      createdAt: new Date().toISOString(),
+      status: 'Warehouse Ready',
+      ...pledgeData
+    };
+    current.unshift(newPledge);
+    localStorage.setItem(STORAGE_PLEDGES, JSON.stringify(current));
+
+    if (newPledge.targetNGO && newPledge.commodity && newPledge.quantity) {
+      this.replenishStockpileFromPledge(newPledge.targetNGO, newPledge.commodity, newPledge.quantity);
+    }
+
+    try {
+      this.addNotification({
+        title: `💝 New Community Relief Pledge (${newPledge.district})`,
+        message: `${newPledge.donorName} sponsored ${newPledge.quantity} ${newPledge.unit || 'kits'} of ${newPledge.commodity}.`,
+        urgency: 'Normal',
+        district: newPledge.district
+      });
+    } catch (e) {}
+
+    return newPledge;
   }
 };

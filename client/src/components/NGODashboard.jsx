@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import StockpileMatrix from './StockpileMatrix';
+import { api } from '../services/api';
 
 const COMMON_NGOS = [
   'The Shimoga Multipurpose Social Service Society',
@@ -17,6 +19,9 @@ export default function NGODashboard({
   ratings = [],
   ngos = [],
   volunteers = [],
+  stockpiles = {},
+  onUpdateStockpileItem,
+  onNavigateToPledges,
   onUpdateStatus,
   onOpenAuth,
   onOpenCertificate
@@ -25,6 +30,9 @@ export default function NGODashboard({
   const [activeNgoName, setActiveNgoName] = useState(
     user?.ngoName || 'The Shimoga Multipurpose Social Service Society'
   );
+
+  // View Mode: 'missions' or 'stockpile'
+  const [dashboardView, setDashboardView] = useState('missions');
 
   // Volunteer Dispatching Console State
   const [dispatchModalReq, setDispatchModalReq] = useState(null);
@@ -170,6 +178,15 @@ export default function NGODashboard({
   const handleConfirmDispatch = async () => {
     if (!dispatchModalReq) return;
     const assignedVol = volunteers.find(v => String(v.id) === String(selectedVolunteerId)) || null;
+
+    // Deduct warehouse stockpile via Knapsack allocation
+    if (api && api.deductStockpileForMission) {
+      api.deductStockpileForMission(activeNgoName, dispatchModalReq.category, 25);
+      if (onUpdateStockpileItem) {
+        onUpdateStockpileItem(activeNgoName, null, null);
+      }
+    }
+
     await onUpdateStatus(
       dispatchModalReq._id,
       'In Progress',
@@ -383,8 +400,36 @@ export default function NGODashboard({
         </div>
       </div>
 
-      {/* Main Content Layout: Stream on Left, Broadcast on Right */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(300px, 1fr)', gap: '24px' }}>
+      {/* Dashboard Sub-View Switcher: Field Missions vs Warehouse Stockpile */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className={`sector-tab-pill ${dashboardView === 'missions' ? 'active' : ''}`}
+          onClick={() => setDashboardView('missions')}
+          style={{ fontSize: '13px', fontWeight: '800', padding: '8px 18px' }}
+        >
+          🚨 Incoming Field Missions ({matchedRequests.length})
+        </button>
+        <button
+          type="button"
+          className={`sector-tab-pill ${dashboardView === 'stockpile' ? 'active' : ''}`}
+          onClick={() => setDashboardView('stockpile')}
+          style={{ fontSize: '13px', fontWeight: '800', padding: '8px 18px' }}
+        >
+          📦 Warehouse Stockpile & Knapsack Matrix
+        </button>
+      </div>
+
+      {dashboardView === 'stockpile' ? (
+        <StockpileMatrix
+          activeNgoName={activeNgoName}
+          stockpiles={stockpiles}
+          onUpdateStockpileItem={onUpdateStockpileItem}
+          onNavigateToPledges={onNavigateToPledges}
+        />
+      ) : (
+        /* Main Content Layout: Stream on Left, Broadcast on Right */
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(300px, 1fr)', gap: '24px' }}>
         {/* Left Column: Response View & Connect Hub */}
         <div>
           {/* Controls & Filter Tabs */}
@@ -530,6 +575,32 @@ export default function NGODashboard({
                         <span style={{ fontSize: '12px', background: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '4px', fontWeight: '700', border: '1px solid #86efac' }}>
                           ⚡ {score}% NLP Matched to your NGO
                         </span>
+
+                        {api.calculateKnapsackCoverage && (
+                          (() => {
+                            const cov = api.calculateKnapsackCoverage(activeNgoName, req.category);
+                            return (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: '700',
+                                  backgroundColor: cov.score >= 80 ? '#ecfdf5' : '#fffbeb',
+                                  color: cov.score >= 80 ? '#065f46' : '#92400e',
+                                  border: cov.score >= 80 ? '1px solid #a7f3d0' : '1px solid #fde68a',
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                title={`Warehouse Stock: ${cov.available} ${cov.unit} (${cov.status})`}
+                              >
+                                <span>📦</span>
+                                <span>Knapsack Stockpile: {cov.score}%</span>
+                              </span>
+                            );
+                          })()
+                        )}
                       </div>
 
                       <span
@@ -967,6 +1038,11 @@ export default function NGODashboard({
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+      )}
+
       {/* Dispatch Field Team Modal */}
       {dispatchModalReq && (
         <div className="modal-backdrop-clean" onClick={() => setDispatchModalReq(null)}>

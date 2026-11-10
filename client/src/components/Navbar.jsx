@@ -1,5 +1,3 @@
-import React from 'react';
-
 import React, { useState } from 'react';
 
 export default function Navbar({
@@ -23,6 +21,7 @@ export default function Navbar({
         { id: 'directory', label: 'NGO Directory' },
         { id: 'analytics', label: '📊 District Analytics' },
         { id: 'volunteers', label: '🤝 Volunteer Mobilization' },
+        { id: 'pledges', label: '💝 Community Pledges' },
         { id: 'reviews', label: 'Reviews & Ratings' }
       ]
     : [
@@ -33,6 +32,7 @@ export default function Navbar({
         { id: 'directory', label: 'NGO Directory' },
         { id: 'analytics', label: '📊 District Analytics' },
         { id: 'volunteers', label: '🤝 Volunteer Hub' },
+        { id: 'pledges', label: '💝 Community Pledges' },
         { id: 'reviews', label: 'Reviews & Ratings' }
       ];
 

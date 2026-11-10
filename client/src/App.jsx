@@ -12,6 +12,7 @@ import LiveReliefMap from './components/LiveReliefMap';
 import IncidentReportModal from './components/IncidentReportModal';
 import XAIExplanationModal from './components/XAIExplanationModal';
 import ReliefCertificateModal from './components/ReliefCertificateModal';
+import ReliefPledgeHub from './components/ReliefPledgeHub';
 import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
 import { api } from './services/api';
@@ -26,6 +27,8 @@ function App() {
   const [ratings, setRatings] = useState([]);
   const [volunteers, setVolunteers] = useState(() => (api.getVolunteers ? api.getVolunteers() : []));
   const [notifications, setNotifications] = useState(() => (api.getNotifications ? api.getNotifications() : []));
+  const [stockpiles, setStockpiles] = useState(() => (api.getStockpiles ? api.getStockpiles() : {}));
+  const [pledges, setPledges] = useState(() => (api.getPledges ? api.getPledges() : []));
 
   // Minor Project Module State: Explainable AI, Relief Certificate & Incident Report Modals
   const [activeXAIModal, setActiveXAIModal] = useState(null);
@@ -78,6 +81,27 @@ function App() {
       setVolunteers(prev => [created, ...prev]);
     }
     return created;
+  };
+
+  const handleCreatePledge = (pledgeData) => {
+    if (api.createPledge) {
+      const created = api.createPledge(pledgeData);
+      setPledges(prev => [created, ...prev]);
+      if (api.getStockpiles) {
+        setStockpiles(api.getStockpiles());
+      }
+      if (api.getNotifications) {
+        setNotifications(api.getNotifications());
+      }
+      return created;
+    }
+  };
+
+  const handleUpdateStockpileItem = (ngoName, itemId, newQty) => {
+    if (api.updateStockpileItem) {
+      const updated = api.updateStockpileItem(ngoName, itemId, newQty);
+      setStockpiles({ ...updated });
+    }
   };
 
   const handleUpdateStatus = async (id, status, notes = '', extraData = {}) => {
@@ -454,9 +478,21 @@ function App() {
             ratings={ratings}
             ngos={ngos}
             volunteers={volunteers}
+            stockpiles={stockpiles}
+            onUpdateStockpileItem={handleUpdateStockpileItem}
+            onNavigateToPledges={() => setActiveTab('pledges')}
             onUpdateStatus={handleUpdateStatus}
             onOpenAuth={() => setIsAuthOpen(true)}
             onOpenCertificate={(req) => setActiveCertificateRequest(req)}
+          />
+        )}
+
+        {activeTab === 'pledges' && (
+          <ReliefPledgeHub
+            pledges={pledges}
+            onCreatePledge={handleCreatePledge}
+            user={user}
+            onNavigateToCertificate={(req) => setActiveCertificateRequest(req)}
           />
         )}
 

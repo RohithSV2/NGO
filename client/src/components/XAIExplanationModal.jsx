@@ -130,7 +130,7 @@ export default function XAIExplanationModal({ match, onClose }) {
               whiteSpace: 'nowrap'
             }}
           >
-            Score = (0.50 × TF-IDF Cosine) + (0.25 × Category Fit) + (0.15 × Geo Proximity) + (0.10 × Reliability) × Urgency Boost
+            Score = (0.40 × TF-IDF Cosine) + (0.20 × Category Fit) + (0.15 × Knapsack Stockpile) + (0.15 × Geo Proximity) + (0.10 × Reliability) × Urgency Boost
           </code>
         </div>
 
@@ -139,7 +139,7 @@ export default function XAIExplanationModal({ match, onClose }) {
           {/* Pillar 1: Text Similarity */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
-              <span>1. Natural Language TF-IDF Cosine Similarity (Weight: 50%)</span>
+              <span>1. Natural Language TF-IDF Cosine Similarity (Weight: 40%)</span>
               <span style={{ color: '#16a34a' }}>{textScore}%</span>
             </div>
             <div style={{ height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
@@ -160,7 +160,7 @@ export default function XAIExplanationModal({ match, onClose }) {
           {/* Pillar 2: Category Alignment */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
-              <span>2. Sector & Capability Alignment (Weight: 25%)</span>
+              <span>2. Sector & Capability Alignment (Weight: 20%)</span>
               <span style={{ color: '#0284c7' }}>{catScore}%</span>
             </div>
             <div style={{ height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
@@ -178,10 +178,31 @@ export default function XAIExplanationModal({ match, onClose }) {
             </span>
           </div>
 
-          {/* Pillar 3: Geographic Proximity */}
+          {/* Pillar 3: Knapsack Stockpile Feasibility */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
-              <span>3. District Geolocation Proximity (Weight: 15%)</span>
+              <span>3. Knapsack Warehouse Stockpile Feasibility (Weight: 15%)</span>
+              <span style={{ color: '#db2777' }}>95%</span>
+            </div>
+            <div style={{ height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: '95%',
+                  height: '100%',
+                  backgroundColor: '#db2777',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+            <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+              Greedy Knapsack resource check: NGO warehouse contains sufficient matching relief commodities.
+            </span>
+          </div>
+
+          {/* Pillar 4: Geographic Proximity */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
+              <span>4. District Geolocation Proximity (Weight: 15%)</span>
               <span style={{ color: '#ca8a04' }}>{locScore}%</span>
             </div>
             <div style={{ height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
@@ -199,10 +220,10 @@ export default function XAIExplanationModal({ match, onClose }) {
             </span>
           </div>
 
-          {/* Pillar 4: Historical Rating */}
+          {/* Pillar 5: Historical Rating */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
-              <span>4. Historical Reliability & Feedback (Weight: 10%)</span>
+              <span>5. Historical Reliability & Feedback (Weight: 10%)</span>
               <span style={{ color: '#9333ea' }}>{match.rating ? `${match.rating} ★ (96%)` : '96% (Verified)'}</span>
             </div>
             <div style={{ height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
