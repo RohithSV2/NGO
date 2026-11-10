@@ -122,8 +122,19 @@
 .navbar-nav {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
+  gap: 2px;
+  flex-wrap: nowrap;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.navbar-nav::-webkit-scrollbar {
+  display: none;
 }
 
 @media (max-width: 860px) {
@@ -137,8 +148,8 @@
   border: none;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text);
-  padding: 6px 11px;
+  color: #475569;
+  padding: 5px 10px;
   border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
@@ -146,14 +157,15 @@
 }
 
 .nav-link-btn:hover {
-  color: var(--text-h);
-  background-color: var(--bg-subtle);
+  color: #0f172a;
+  background-color: rgba(255, 255, 255, 0.7);
 }
 
 .nav-link-btn.active {
   color: var(--accent-hover);
-  background-color: var(--accent-bg);
-  font-weight: 600;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
 }
 
 .navbar-actions {

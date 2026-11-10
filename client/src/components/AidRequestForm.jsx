@@ -296,65 +296,38 @@ export default function AidRequestForm({
         </div>
       ) : (
         <div style={{ maxWidth: '780px', margin: '0 auto' }}>
-          {/* Direct Targeting Indicator Banner */}
-          {selectedTargetNGO && (
-            <div
-              style={{
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #86efac',
-                borderRadius: '10px',
-                padding: '14px 18px',
-                marginBottom: '20px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '10px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '26px' }}>🎯</span>
-                <div>
-                  <div style={{ fontWeight: '800', color: '#166534', fontSize: '15px' }}>
-                    Directing Aid Request To: {selectedTargetNGO.name}
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#15803d', marginTop: '2px' }}>
-                    Sector: {selectedTargetNGO.category} &bull; City: {selectedTargetNGO.city} &bull; The coordinator of this NGO will receive and monitor your request directly.
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedTargetNGO(null);
-                  if (onClearTargetNGO) onClearTargetNGO();
-                }}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #86efac',
-                  color: '#166534',
-                  padding: '5px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Clear Target (Open Match)
-              </button>
-            </div>
-          )}
-
-          {/* Main Form */}
+          {/* Main Form - Single Unified Frame */}
           <form className="pro-form-card" onSubmit={handleSubmit}>
             {/* Target NGO Selector Dropdown */}
             <div className="form-field">
-              <label htmlFor="req-target-ngo">
-                Recipient NGO / Destination{' '}
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  (Select a specific NGO coordinator or leave on AI auto-match)
-                </span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label htmlFor="req-target-ngo" style={{ margin: 0 }}>
+                  Recipient NGO / Destination{' '}
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    (Select a specific NGO coordinator or leave on AI auto-match)
+                  </span>
+                </label>
+                {selectedTargetNGO && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTargetNGO(null);
+                      if (onClearTargetNGO) onClearTargetNGO();
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#16a34a',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    ✕ Reset to Open Match
+                  </button>
+                )}
+              </div>
               <select
                 id="req-target-ngo"
                 className="input-control select-control"
@@ -368,6 +341,27 @@ export default function AidRequestForm({
                   </option>
                 ))}
               </select>
+              {selectedTargetNGO && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    fontSize: '12px',
+                    color: '#15803d',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <span style={{ fontSize: '16px' }}>🎯</span>
+                  <span>
+                    Direct dispatch route locked to <strong>{selectedTargetNGO.name}</strong> ({selectedTargetNGO.category} &bull; {selectedTargetNGO.city}). The coordinator of this NGO will receive and monitor your request directly.
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="form-field">
