@@ -224,7 +224,7 @@ export default function ReliefCertificateModal({ request, ratings = [], onClose 
         {/* Modal Action Buttons */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
           <span style={{ fontSize: '12px', color: '#64748b' }}>
-            Suitable for academic viva demonstration and compliance records.
+            Official humanitarian verification certificate and compliance record.
           </span>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button

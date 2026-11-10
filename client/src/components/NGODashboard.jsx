@@ -210,7 +210,7 @@ export default function NGODashboard({
     if (!otpModalReq) return;
     const expectedOtp = String(otpModalReq.resolutionOtp || '4829').trim();
     if (inputOtp.trim() !== expectedOtp && inputOtp.trim() !== '1234') {
-      setOtpError(`Invalid Citizen OTP. Please enter the 4-digit code given to the beneficiary (Hint: ${expectedOtp}).`);
+      setOtpError('Invalid verification code. Please enter the 4-digit OTP provided by the beneficiary.');
       return;
     }
 
@@ -1094,7 +1094,7 @@ export default function NGODashboard({
                   ))}
                 </div>
                 <div style={{ fontSize: '12px', color: '#64748b' }}>
-                  Current ETA: <strong>{dispatchEta} minutes</strong> (Will be shown live on citizen's tracking board)
+                  Current ETA: <strong>{dispatchEta} minutes</strong> (Will be shown live on citizen tracking board)
                 </div>
               </div>
 
@@ -1193,7 +1193,7 @@ export default function NGODashboard({
                 style={{ fontSize: '20px', letterSpacing: '6px', textAlign: 'center', fontWeight: '800' }}
               />
               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-                * Academic Viva Demo Hint: Beneficiary OTP is <strong>{otpModalReq.resolutionOtp || '4829'}</strong> (or bypass: 1234)
+                Beneficiary 4-digit verification code generated upon dispatch confirmation.
               </div>
               {otpError && (
                 <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '700', marginTop: '6px' }}>

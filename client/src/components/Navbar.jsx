@@ -16,23 +16,23 @@ export default function Navbar({
 
   const navItems = isNGO
     ? [
-        { id: 'ngo-portal', label: '🏢 NGO Response Hub' },
-        { id: 'map', label: '🗺️ Live Relief Map' },
+        { id: 'ngo-portal', label: 'NGO Response Hub' },
+        { id: 'map', label: 'Live Relief Map' },
         { id: 'directory', label: 'NGO Directory' },
-        { id: 'analytics', label: '📊 District Analytics' },
-        { id: 'volunteers', label: '🤝 Volunteer Mobilization' },
-        { id: 'pledges', label: '💝 Community Pledges' },
+        { id: 'analytics', label: 'District Analytics' },
+        { id: 'pledges', label: 'Community Pledges' },
+        { id: 'volunteers', label: 'Volunteer Mobilization' },
         { id: 'reviews', label: 'Reviews & Ratings' }
       ]
     : [
         { id: 'overview', label: 'Overview' },
         { id: 'request-aid', label: 'Post Aid Request' },
-        { id: 'map', label: '🗺️ Live Relief Map' },
         { id: 'tracker', label: user ? 'Track My Requests' : 'Track Requests' },
+        { id: 'map', label: 'Live Relief Map' },
         { id: 'directory', label: 'NGO Directory' },
-        { id: 'analytics', label: '📊 District Analytics' },
-        { id: 'volunteers', label: '🤝 Volunteer Hub' },
-        { id: 'pledges', label: '💝 Community Pledges' },
+        { id: 'analytics', label: 'District Analytics' },
+        { id: 'pledges', label: 'Community Pledges' },
+        { id: 'volunteers', label: 'Volunteer Hub' },
         { id: 'reviews', label: 'Reviews & Ratings' }
       ];
 

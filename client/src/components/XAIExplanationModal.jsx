@@ -153,7 +153,7 @@ export default function XAIExplanationModal({ match, onClose }) {
               />
             </div>
             <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
-              Stemmed crisis tokens matched against organization's service domain and emergency keywords.
+              Stemmed crisis tokens matched against organization service domain and emergency keywords.
             </span>
           </div>
 

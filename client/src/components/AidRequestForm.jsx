@@ -396,53 +396,16 @@ export default function AidRequestForm({
                 ))}
               </div>
 
-              {/* NLP Severity Auto-Escalation Pill */}
+              {/* NLP Severity Auto-Escalation Note */}
               {nlpUrgencyTrigger && (
-                <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '8px 12px', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#991b1b' }}>
-                  <span>⚡</span>
-                  <span>
-                    <strong>NLP Severity Classifier:</strong> Auto-escalated to <strong>{nlpUrgencyTrigger.level} Urgency</strong> based on life-safety tokens: <em>{nlpUrgencyTrigger.tokens.join(', ')}</em>.
-                  </span>
+                <div style={{ fontSize: '12px', color: '#166534', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>✓ Urgency priority automatically set to <strong>{nlpUrgencyTrigger.level}</strong> based on emergency description.</span>
                 </div>
               )}
             </div>
 
             <div className="form-field">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
-                <label htmlFor="req-desc" style={{ margin: 0 }}>Detailed Description & Resources Needed</label>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData(prev => ({
-                        ...prev,
-                        title: 'Emergency Flood Rescue & Drinking Water',
-                        category: 'Disaster Relief & Management',
-                        city: prev.city || 'Shivamogga',
-                        description: 'ಪ್ರವಾಹ ನೀರಿನಿಂದಾಗಿ 40 ಕುಟುಂಬಗಳು ಸಿಲುಕಿಕೊಂಡಿವೆ, ತುರ್ತು ರಕ್ಷಣೆ ಮತ್ತು ಕುಡಿಯುವ ನೀರು ಬೇಕು (Translation: Over 40 families trapped by river floodwaters. Urgent rescue boat, food kits and clean drinking water needed).'
-                      }));
-                    }}
-                    style={{ fontSize: '11px', fontWeight: '700', backgroundColor: '#f0fdf4', border: '1px solid #86efac', color: '#166534', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                  >
-                    ಕನ್ನಡ SOS: Flood Relief Preset
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData(prev => ({
-                        ...prev,
-                        title: 'Emergency Trauma & Paramedic Ambulance',
-                        category: 'Health & Family Welfare',
-                        city: prev.city || 'Mysuru',
-                        description: 'ವೃದ್ಧರಿಗೆ ಮತ್ತು ಮಕ್ಕಳಿಗೆ ತುರ್ತು ವೈದ್ಯಕೀಯ ಚಿಕಿತ್ಸೆ ಮತ್ತು ಆಂಬ್ಯುಲೆನ್ಸ್ ನೆರವು ಬೇಕಾಗಿದೆ (Translation: Critical medical paramedic assistance, ambulance transport, and life-saving medications required for elderly and children).'
-                      }));
-                    }}
-                    style={{ fontSize: '11px', fontWeight: '700', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                  >
-                    ಕನ್ನಡ SOS: Medical Need Preset
-                  </button>
-                </div>
-              </div>
+              <label htmlFor="req-desc">Detailed Description & Resources Needed</label>
               <textarea
                 id="req-desc"
                 className="input-control textarea-control"
@@ -452,16 +415,6 @@ export default function AidRequestForm({
                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                 required
               ></textarea>
-
-              {/* Local Cluster Warning Banner */}
-              {localClusterWarning && (
-                <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#92400e' }}>
-                  <span>⚠️</span>
-                  <span>
-                    <strong>Local Cluster Detected:</strong> An existing request (<em>"{localClusterWarning.title}"</em>) is active in <strong>{localClusterWarning.city}</strong>. Responders can consolidate into a single convoy.
-                  </span>
-                </div>
-              )}
             </div>
 
             <div className="form-columns-2">
