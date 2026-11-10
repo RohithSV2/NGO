@@ -261,7 +261,7 @@ export default function AidRequestForm({
             >
               View in Request Tracker
             </button>
-            {onNavigateToNGOConsole && (
+            {user?.role === 'ngo' && onNavigateToNGOConsole && (
               <button
                 type="button"
                 className="btn-outline-green"

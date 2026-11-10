@@ -32,8 +32,7 @@ export default function Navbar({
         { id: 'analytics', label: 'Analytics' },
         { id: 'pledges', label: 'Pledges' },
         { id: 'volunteers', label: 'Volunteers' },
-        { id: 'reviews', label: 'Reviews' },
-        { id: 'ngo-portal', label: 'NGO Hub' }
+        { id: 'reviews', label: 'Reviews' }
       ];
 
   const handleBrandClick = () => {

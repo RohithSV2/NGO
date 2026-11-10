@@ -469,22 +469,52 @@ function App() {
         )}
 
         {activeTab === 'ngo-portal' && (
-          <NGODashboard
-            user={user}
-            requests={requests}
-            ratings={ratings}
-            ngos={ngos}
-            volunteers={volunteers}
-            stockpiles={stockpiles}
-            activeNgoName={activeNgoName}
-            onSelectNgoName={setActiveNgoName}
-            onNavigateToTracker={() => setActiveTab('tracker')}
-            onUpdateStockpileItem={handleUpdateStockpileItem}
-            onNavigateToPledges={() => setActiveTab('pledges')}
-            onUpdateStatus={handleUpdateStatus}
-            onOpenAuth={() => setIsAuthOpen(true)}
-            onOpenCertificate={(req) => setActiveCertificateRequest(req)}
-          />
+          user?.role === 'ngo' ? (
+            <NGODashboard
+              user={user}
+              requests={requests}
+              ratings={ratings}
+              ngos={ngos}
+              volunteers={volunteers}
+              stockpiles={stockpiles}
+              activeNgoName={activeNgoName}
+              onSelectNgoName={setActiveNgoName}
+              onNavigateToTracker={() => setActiveTab('tracker')}
+              onUpdateStockpileItem={handleUpdateStockpileItem}
+              onNavigateToPledges={() => setActiveTab('pledges')}
+              onUpdateStatus={handleUpdateStatus}
+              onOpenAuth={() => setIsAuthOpen(true)}
+              onOpenCertificate={(req) => setActiveCertificateRequest(req)}
+            />
+          ) : (
+            <div className="section-container" style={{ maxWidth: '640px', margin: '40px auto', textAlign: 'center', padding: '40px 24px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🛡️</div>
+              <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', marginBottom: '8px' }}>
+                NGO Representative Access Required
+              </h2>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', marginBottom: '24px' }}>
+                The Operational Response Console is restricted exclusively to verified NGO representatives and disaster relief coordinators. Please sign in with your coordinator credentials to manage field dispatches.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn-primary-green"
+                  onClick={() => setIsAuthOpen(true)}
+                  style={{ padding: '10px 22px', fontSize: '14px' }}
+                >
+                  Sign In as NGO Representative
+                </button>
+                <button
+                  type="button"
+                  className="btn-outline-green"
+                  onClick={() => setActiveTab('overview')}
+                  style={{ padding: '10px 22px', fontSize: '14px' }}
+                >
+                  Return to Overview
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {activeTab === 'pledges' && (
