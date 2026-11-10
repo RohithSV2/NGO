@@ -9,6 +9,7 @@ import RatingsSection from './components/RatingsSection';
 import DistrictAnalytics from './components/DistrictAnalytics';
 import VolunteerHub from './components/VolunteerHub';
 import IncidentReportModal from './components/IncidentReportModal';
+import ExaminerLiveDemoModal from './components/ExaminerLiveDemoModal';
 import XAIExplanationModal from './components/XAIExplanationModal';
 import ReliefCertificateModal from './components/ReliefCertificateModal';
 import ReliefPledgeHub from './components/ReliefPledgeHub';
@@ -33,6 +34,62 @@ function App() {
     return currentUser?.ngoName || 'The Shimoga Multipurpose Social Service Society';
   });
 
+  const handleExecuteScenario = async (scenario, isLive) => {
+    try {
+      const newReq = await api.createAidRequest({
+        title: scenario.title,
+        category: scenario.category,
+        urgency: scenario.urgency,
+        city: scenario.district,
+        requesterName: scenario.requesterName,
+        requesterPhone: scenario.requesterPhone,
+        requesterEmail: scenario.requesterEmail,
+        description: scenario.description,
+        targetNgoName: scenario.targetNgoName,
+        targetNGO: {
+          name: scenario.targetNgoName,
+          category: scenario.category,
+          city: scenario.district
+        }
+      });
+
+      if (newReq) {
+        if (isLive) {
+          const dispatched = await api.updateRequestStatus(
+            newReq._id,
+            'In Progress',
+            scenario.dispatchNote,
+            {
+              etaMinutes: scenario.etaMinutes,
+              assignedVolunteerName: scenario.volunteerName,
+              assignedVolunteerPhone: scenario.volunteerPhone,
+              resolutionOtp: scenario.resolutionOtp
+            }
+          );
+          setRequests(prev => [dispatched || newReq, ...prev.filter(r => r._id !== newReq._id)]);
+        } else {
+          const resolved = await api.updateRequestStatus(
+            newReq._id,
+            'Resolved',
+            `Delivered & verified by volunteer ${scenario.volunteerName}. Verified with citizen OTP #${scenario.resolutionOtp}.`,
+            {
+              etaMinutes: 0,
+              assignedVolunteerName: scenario.volunteerName,
+              assignedVolunteerPhone: scenario.volunteerPhone,
+              resolutionOtp: scenario.resolutionOtp,
+              deliveryProofPhoto: scenario.deliveryPhoto
+            }
+          );
+          setRequests(prev => [resolved || newReq, ...prev.filter(r => r._id !== newReq._id)]);
+        }
+      }
+
+      setActiveTab('tracker');
+    } catch (err) {
+      console.error('Demo simulation error:', err);
+    }
+  };
+
   const handleSwitchToNGO = (ngoName) => {
     if (ngoName) {
       setActiveNgoName(ngoName);
@@ -44,6 +101,7 @@ function App() {
   const [activeXAIModal, setActiveXAIModal] = useState(null);
   const [activeCertificateRequest, setActiveCertificateRequest] = useState(null);
   const [activeIncidentReport, setActiveIncidentReport] = useState(false);
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
 
   // Review modal state triggered upon resolving an aid request
   const [reviewModalTarget, setReviewModalTarget] = useState(null);
@@ -655,6 +713,22 @@ function App() {
         </div>
       )}
 
+      {/* Discreet Small Examiner Demo Button */}
+      <button
+        type="button"
+        className="examiner-demo-floating-btn no-print"
+        onClick={() => setIsDemoOpen(true)}
+        title="Click to open 1-Click Examiner Viva Demo Scenarios"
+      >
+        <span style={{ fontSize: '12px' }}>⚡</span>
+        <span>Examiner Demo</span>
+      </button>
+
+      <ExaminerLiveDemoModal
+        isOpen={isDemoOpen}
+        onClose={() => setIsDemoOpen(false)}
+        onExecuteScenario={handleExecuteScenario}
+      />
       {/* Auth Modal */}
       <AuthModal
         isOpen={isAuthOpen}

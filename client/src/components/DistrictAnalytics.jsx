@@ -124,7 +124,7 @@ export default function DistrictAnalytics({
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', fontSize: '13px', fontWeight: '700' }}
             >
               <span>📄</span>
-              <span>Export Official Incident Report (PDF)</span>
+              <span>Export Incident Dossier (KSDMA / NDRF)</span>
             </button>
           )}
         </div>

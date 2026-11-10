@@ -26,7 +26,9 @@ export default function RequestTracker({
 
   onOpenXAI,
 
-  onOpenCertificate
+  onOpenCertificate,
+
+  onOpenIncidentReport
 
 }) {
 
@@ -168,27 +170,30 @@ export default function RequestTracker({
 
 
 
-          {onNavigateToPostRequest && (
-
-            <button
-
-              type="button"
-
-              className="btn-primary-green"
-
-              onClick={onNavigateToPostRequest}
-
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', fontSize: '13px', fontWeight: '700' }}
-
-            >
-
-              <span>+</span>
-
-              <span>Post Another Aid Request</span>
-
-            </button>
-
-          )}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {onOpenIncidentReport && (
+              <button
+                type="button"
+                className="btn-outline-green"
+                onClick={onOpenIncidentReport}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontSize: '13px', fontWeight: '700' }}
+              >
+                <span>📄</span>
+                <span>Export Incident Dossier</span>
+              </button>
+            )}
+            {onNavigateToPostRequest && (
+              <button
+                type="button"
+                className="btn-primary-green"
+                onClick={onNavigateToPostRequest}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', fontSize: '13px', fontWeight: '700' }}
+              >
+                <span>+</span>
+                <span>Post Another Aid Request</span>
+              </button>
+            )}
+          </div>
 
         </div>
 
