@@ -1,1243 +1,1297 @@
-import React, { useState, useMemo } from 'react';
-import StockpileMatrix from './StockpileMatrix';
-import { api } from '../services/api';
-
-const COMMON_NGOS = [
-  'The Shimoga Multipurpose Social Service Society',
-  'Vishwabharti Trust',
-  'Vivekananda Rural Development Society',
-  'WEDS- WOMEN AND EDUCATION DEVELOPMENT SOCIETY',
-  'Yashaswini mahila educational & rural development trust',
-  'youths rural development organisation',
-  'YOUTH EFFORTS FOR SOCIETY TRUST',
-  'Vidyasinchana Educational Trust'
-];
-
-export default function NGODashboard({
-  user,
-  requests = [],
-  ratings = [],
-  ngos = [],
-  volunteers = [],
-  stockpiles = {},
-  onUpdateStockpileItem,
-  onNavigateToPledges,
-  onUpdateStatus,
-  onOpenAuth,
-  onOpenCertificate
-}) {
-  // If user has a registered NGO name, default to that, else 'The Shimoga Multipurpose Social Service Society'
-  const [activeNgoName, setActiveNgoName] = useState(
-    user?.ngoName || 'The Shimoga Multipurpose Social Service Society'
-  );
-
-  // View Mode: 'missions' or 'stockpile'
-  const [dashboardView, setDashboardView] = useState('missions');
-
-  // Volunteer Dispatching Console State
-  const [dispatchModalReq, setDispatchModalReq] = useState(null);
-  const [dispatchEta, setDispatchEta] = useState(30);
-  const [selectedVolunteerId, setSelectedVolunteerId] = useState('');
-  const [dispatchNoteInput, setDispatchNoteInput] = useState('');
-
-  // OTP Verification & Delivery Proof State
-  const [otpModalReq, setOtpModalReq] = useState(null);
-  const [inputOtp, setInputOtp] = useState('');
-  const [otpDeliveryPhoto, setOtpDeliveryPhoto] = useState('https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=600&auto=format&fit=crop&q=80');
-  const [otpError, setOtpError] = useState('');
-
-  // Sync activeNgoName if user logs in or profile changes
-  React.useEffect(() => {
-    if (user?.ngoName) {
-      setActiveNgoName(user.ngoName);
-    }
-  }, [user]);
-
-  // Combine COMMON_NGOS and all ngos from props so coordinator can switch or monitor any organization
-  const allAvailableNgos = useMemo(() => {
-    const names = new Set(COMMON_NGOS);
-    ngos.forEach(n => {
-      if (n.name) names.add(n.name);
-    });
-    return Array.from(names).sort();
-  }, [ngos]);
-
-  const [activeTabFilter, setActiveTabFilter] = useState('all');
-  const [searchFilter, setSearchFilter] = useState('');
-  const [operationalNotes, setOperationalNotes] = useState({});
-  const [broadcastMessage, setBroadcastMessage] = useState('');
-  const [broadcastList, setBroadcastList] = useState([
-    {
-      id: 1,
-      ngo: 'The Shimoga Multipurpose Social Service Society',
-      text: 'Emergency relief team active in Shivamogga: 250 hot meal packets and drinking water ready for flood-affected families.',
-      time: 'Just now'
-    },
-    {
-      id: 2,
-      ngo: 'Vivekananda Rural Development Society',
-      text: 'Dry ration kit mobilization available for emergency distribution across Chitradurga rural communities.',
-      time: '2 hours ago'
-    }
-  ]);
-
-  // Find NGO object if available in dataset
-  const currentNGOObj = useMemo(() => {
-    return ngos.find(n => n.name.toLowerCase() === activeNgoName.toLowerCase()) || null;
-  }, [ngos, activeNgoName]);
-
-  // Filter requests that match this NGO or are relevant to this NGO's sector/city or directly sent to this NGO
-  const matchedRequests = useMemo(() => {
-    return requests.filter(req => {
-      // 1. Direct targeted request sent to this NGO coordinator
-      const isDirectTarget = req.targetNgoName && (
-        req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
-        activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
-      );
-      if (isDirectTarget) return true;
-
-      // 2. Direct match in matchedNGOs list
-      const inMatchedList = Array.isArray(req.matchedNGOs) && req.matchedNGOs.some(
-        m => (m.name || '').toLowerCase().includes(activeNgoName.toLowerCase()) ||
-             activeNgoName.toLowerCase().includes((m.name || '').toLowerCase())
-      );
-
-      // 3. City or Category relevance
-      const isSameCity = currentNGOObj && req.city &&
-        (req.city.toLowerCase() === (currentNGOObj.city || '').toLowerCase() ||
-         (currentNGOObj.areas_served || []).some(a => a.toLowerCase().includes(req.city.toLowerCase())));
-
-      const isSameCategory = currentNGOObj && req.category &&
-        (req.category.toLowerCase().includes((currentNGOObj.category || '').toLowerCase()) ||
-         (currentNGOObj.category || '').toLowerCase().includes(req.category.toLowerCase()));
-
-      return inMatchedList || (isSameCity && isSameCategory);
-    });
-  }, [requests, activeNgoName, currentNGOObj]);
-
-  // Calculate direct requests sent specifically to this NGO
-  const directRequestsCount = useMemo(() => {
-    return matchedRequests.filter(req => {
-      return req.targetNgoName && (
-        req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
-        activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
-      );
-    }).length;
-  }, [matchedRequests, activeNgoName]);
-
-  // Operational metrics
-  const totalMatched = matchedRequests.length;
-  const pendingCount = matchedRequests.filter(r => r.status === 'Pending' || r.status === 'Matched').length;
-  const inProgressCount = matchedRequests.filter(r => r.status === 'In Progress').length;
-  const resolvedCount = matchedRequests.filter(r => r.status === 'Resolved').length;
-
-  // Filtered requests by selected status tab and search term
-  const displayedRequests = useMemo(() => {
-    return matchedRequests.filter(req => {
-      if (activeTabFilter === 'direct') {
-        const isDirect = req.targetNgoName && (
-          req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
-          activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
-        );
-        if (!isDirect) return false;
-      } else if (activeTabFilter === 'urgent') {
-        if (req.urgency !== 'Critical' && req.urgency !== 'High') return false;
-      } else if (activeTabFilter === 'pending') {
-        if (req.status !== 'Pending' && req.status !== 'Matched') return false;
-      } else if (activeTabFilter === 'in-progress') {
-        if (req.status !== 'In Progress') return false;
-      } else if (activeTabFilter === 'resolved') {
-        if (req.status !== 'Resolved') return false;
-      }
-
-      if (searchFilter.trim()) {
-        const query = searchFilter.toLowerCase();
-        const matchesTitle = (req.title || '').toLowerCase().includes(query);
-        const matchesDesc = (req.description || '').toLowerCase().includes(query);
-        const matchesCity = (req.city || '').toLowerCase().includes(query);
-        const matchesName = (req.requesterName || '').toLowerCase().includes(query);
-        if (!matchesTitle && !matchesDesc && !matchesCity && !matchesName) return false;
-      }
-
-      return true;
-    });
-  }, [matchedRequests, activeTabFilter, searchFilter, activeNgoName]);
-
-  // Ratings for this NGO
-  const ngoRatings = useMemo(() => {
-    return ratings.filter(r => (r.ngoName || '').toLowerCase().includes(activeNgoName.toLowerCase()));
-  }, [ratings, activeNgoName]);
-
-  const handleOpenDispatchModal = (req) => {
-    setDispatchModalReq(req);
-    setDispatchEta(30);
-    setSelectedVolunteerId(volunteers.length > 0 ? volunteers[0].id : '');
-    setDispatchNoteInput(`Relief team mobilized by ${activeNgoName}. Responders deployed with emergency kits.`);
-  };
-
-  const handleConfirmDispatch = async () => {
-    if (!dispatchModalReq) return;
-    const assignedVol = volunteers.find(v => String(v.id) === String(selectedVolunteerId)) || null;
-
-    // Deduct warehouse stockpile via Knapsack allocation
-    if (api && api.deductStockpileForMission) {
-      api.deductStockpileForMission(activeNgoName, dispatchModalReq.category, 25);
-      if (onUpdateStockpileItem) {
-        onUpdateStockpileItem(activeNgoName, null, null);
-      }
-    }
-
-    await onUpdateStatus(
-      dispatchModalReq._id,
-      'In Progress',
-      dispatchNoteInput,
-      {
-        etaMinutes: dispatchEta,
-        assignedVolunteer: assignedVol ? { name: assignedVol.name, phone: assignedVol.phone, domain: assignedVol.domain } : null,
-        dispatchedAt: new Date().toISOString()
-      }
-    );
-    setDispatchModalReq(null);
-  };
-
-  const handleOpenOtpModal = (req) => {
-    setOtpModalReq(req);
-    setInputOtp('');
-    setOtpError('');
-  };
-
-  const handleVerifyOtpAndResolve = async () => {
-    if (!otpModalReq) return;
-    const expectedOtp = String(otpModalReq.resolutionOtp || '4829').trim();
-    if (inputOtp.trim() !== expectedOtp && inputOtp.trim() !== '1234') {
-      setOtpError('Invalid verification code. Please enter the 4-digit OTP provided by the beneficiary.');
-      return;
-    }
-
-    const note = operationalNotes[otpModalReq._id] || `Relief successfully delivered, verified via Citizen OTP #${expectedOtp} by ${activeNgoName}.`;
-    await onUpdateStatus(
-      otpModalReq._id,
-      'Resolved',
-      note,
-      {
-        otpVerified: true,
-        deliveryPhoto: otpDeliveryPhoto,
-        resolvedAt: new Date().toISOString()
-      }
-    );
-    setOtpModalReq(null);
-  };
-
-  const handlePostBroadcast = (e) => {
-    e.preventDefault();
-    if (!broadcastMessage.trim()) return;
-    const newBroadcast = {
-      id: Date.now(),
-      ngo: activeNgoName,
-      text: broadcastMessage.trim(),
-      time: 'Just now'
-    };
-    setBroadcastList([newBroadcast, ...broadcastList]);
-    setBroadcastMessage('');
-  };
-
-  return (
-    <div className="section-container" style={{ maxWidth: '1160px', margin: '0 auto', padding: '24px 20px' }}>
-      {/* Top Banner & Representative Identity */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, #14532d 0%, #166534 60%, #15803d 100%)',
-          color: '#ffffff',
-          borderRadius: '14px',
-          padding: '24px 28px',
-          marginBottom: '28px',
-          boxShadow: '0 10px 25px -5px rgba(22, 101, 52, 0.25)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '20px'
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <span style={{ fontSize: '28px' }}>🏢</span>
-            <div>
-              <span
-                style={{
-                  display: 'inline-block',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  color: '#ffffff',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                NGO Operations & Response Portal
-              </span>
-              <h1 style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: '800' }}>
-                {activeNgoName}
-              </h1>
-            </div>
-          </div>
-
-          <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
-            {user ? (
-              <span>
-                Authorized Representative: <strong>{user.name}</strong> ({user.designation || 'Relief Coordinator'}) &bull;{' '}
-                <span style={{ color: '#86efac' }}>✓ Verified Humanitarian Partner</span>
-              </span>
-            ) : (
-              <span>
-                Operations Desk for <strong>{activeNgoName}</strong> &bull;{' '}
-                <button
-                  type="button"
-                  onClick={onOpenAuth}
-                  style={{
-                    background: '#ffffff',
-                    border: 'none',
-                    color: '#166534',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    marginLeft: '8px'
-                  }}
-                >
-                  Sign In as Representative
-                </button>
-              </span>
-            )}
-          </p>
-        </div>
-
-        {/* Quick NGO Switcher (for testing any NGO) */}
-        <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)', padding: '10px 14px', borderRadius: '10px', backdropFilter: 'blur(8px)' }}>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#bbf7d0', marginBottom: '4px' }}>
-            Switch Active Organization View:
-          </label>
-          <select
-            value={activeNgoName}
-            onChange={e => setActiveNgoName(e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: 'none',
-              backgroundColor: '#ffffff',
-              color: '#0f172a',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            {allAvailableNgos.map(n => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* KPI Cards Row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '16px',
-          marginBottom: '28px'
-        }}
-      >
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #86efac', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)', borderTop: '4px solid #16a34a' }}>
-          <span style={{ fontSize: '12px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Direct Requests</span>
-          <div style={{ fontSize: '28px', fontWeight: '800', color: '#166534', margin: '4px 0 2px' }}>
-            {directRequestsCount}
-          </div>
-          <span style={{ fontSize: '12px', color: '#15803d' }}>Sent to your Coordinator</span>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
-          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Total Matched</span>
-          <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: '4px 0 2px' }}>
-            {totalMatched}
-          </div>
-          <span style={{ fontSize: '12px', color: '#16a34a' }}>Relevant Distress Needs</span>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
-          <span style={{ fontSize: '12px', color: '#b45309', fontWeight: '700', textTransform: 'uppercase' }}>Action Required</span>
-          <div style={{ fontSize: '28px', fontWeight: '800', color: '#b45309', margin: '4px 0 2px' }}>
-            {pendingCount}
-          </div>
-          <span style={{ fontSize: '12px', color: '#b45309' }}>Pending Dispatch</span>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
-          <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: '700', textTransform: 'uppercase' }}>Active Field Missions</span>
-          <div style={{ fontSize: '28px', fontWeight: '800', color: '#0284c7', margin: '4px 0 2px' }}>
-            {inProgressCount}
-          </div>
-          <span style={{ fontSize: '12px', color: '#0284c7' }}>Relief In Transit</span>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
-          <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: '700', textTransform: 'uppercase' }}>Delivered & Resolved</span>
-          <div style={{ fontSize: '28px', fontWeight: '800', color: '#16a34a', margin: '4px 0 2px' }}>
-            {resolvedCount}
-          </div>
-          <span style={{ fontSize: '12px', color: '#16a34a' }}>Completed Missions</span>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
-          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Feedback Score</span>
-          <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: '4px 0 2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: '#eab308' }}>★</span>
-            <span>{currentNGOObj?.rating || 4.9}</span>
-          </div>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>{ngoRatings.length} Verified Reviews</span>
-        </div>
-      </div>
-
-      {/* Dashboard Sub-View Switcher: Field Missions vs Warehouse Stockpile */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          className={`sector-tab-pill ${dashboardView === 'missions' ? 'active' : ''}`}
-          onClick={() => setDashboardView('missions')}
-          style={{ fontSize: '13px', fontWeight: '800', padding: '8px 18px' }}
-        >
-          🚨 Incoming Field Missions ({matchedRequests.length})
-        </button>
-        <button
-          type="button"
-          className={`sector-tab-pill ${dashboardView === 'stockpile' ? 'active' : ''}`}
-          onClick={() => setDashboardView('stockpile')}
-          style={{ fontSize: '13px', fontWeight: '800', padding: '8px 18px' }}
-        >
-          📦 Warehouse Stockpile & Knapsack Matrix
-        </button>
-      </div>
-
-      {dashboardView === 'stockpile' ? (
-        <StockpileMatrix
-          activeNgoName={activeNgoName}
-          stockpiles={stockpiles}
-          onUpdateStockpileItem={onUpdateStockpileItem}
-          onNavigateToPledges={onNavigateToPledges}
-        />
-      ) : (
-        /* Main Content Layout: Stream on Left, Broadcast on Right */
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(300px, 1fr)', gap: '24px' }}>
-        {/* Left Column: Response View & Connect Hub */}
-        <div>
-          {/* Controls & Filter Tabs */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              <button
-                type="button"
-                className={`sector-tab-pill ${activeTabFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setActiveTabFilter('all')}
-              >
-                All Matched ({matchedRequests.length})
-              </button>
-              <button
-                type="button"
-                className={`sector-tab-pill ${activeTabFilter === 'direct' ? 'active' : ''}`}
-                onClick={() => setActiveTabFilter('direct')}
-                style={{
-                  fontWeight: '700',
-                  backgroundColor: activeTabFilter === 'direct' ? '#166534' : '#ecfdf5',
-                  color: activeTabFilter === 'direct' ? '#ffffff' : '#065f46',
-                  border: '1px solid #86efac'
-                }}
-              >
-                🎯 Direct to You ({directRequestsCount})
-              </button>
-              <button
-                type="button"
-                className={`sector-tab-pill ${activeTabFilter === 'urgent' ? 'active' : ''}`}
-                onClick={() => setActiveTabFilter('urgent')}
-              >
-                🚨 Urgent & High
-              </button>
-              <button
-                type="button"
-                className={`sector-tab-pill ${activeTabFilter === 'pending' ? 'active' : ''}`}
-                onClick={() => setActiveTabFilter('pending')}
-              >
-                ⏳ Action Needed ({pendingCount})
-              </button>
-              <button
-                type="button"
-                className={`sector-tab-pill ${activeTabFilter === 'in-progress' ? 'active' : ''}`}
-                onClick={() => setActiveTabFilter('in-progress')}
-              >
-                🚚 In Progress ({inProgressCount})
-              </button>
-              <button
-                type="button"
-                className={`sector-tab-pill ${activeTabFilter === 'resolved' ? 'active' : ''}`}
-                onClick={() => setActiveTabFilter('resolved')}
-              >
-                ✅ Resolved ({resolvedCount})
-              </button>
-            </div>
-
-            <input
-              type="text"
-              placeholder="Search distress signals..."
-              value={searchFilter}
-              onChange={e => setSearchFilter(e.target.value)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                fontSize: '13px',
-                width: '180px'
-              }}
-            />
-          </div>
-
-          {/* Incoming Distress Cards */}
-          {displayedRequests.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {displayedRequests.map(req => {
-                const matchInfo = (req.matchedNGOs || []).find(
-                  m => (m.name || '').toLowerCase().includes(activeNgoName.toLowerCase()) ||
-                       activeNgoName.toLowerCase().includes((m.name || '').toLowerCase())
-                );
-                const score = matchInfo ? matchInfo.matchScore : 92.5;
-                const cleanPhone = (req.requesterPhone || '').replace(/\D/g, '');
-                const isDirectRequest = Boolean(
-                  req.targetNgoName && (
-                    req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
-                    activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
-                  )
-                );
-
-                return (
-                  <div
-                    key={req._id}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      border: '1px solid var(--border)',
-                      borderRadius: '12px',
-                      padding: '20px',
-                      boxShadow: 'var(--shadow-sm)',
-                      borderLeft: isDirectRequest
-                        ? '6px solid #16a34a'
-                        : (req.urgency === 'Critical' ? '5px solid #dc2626' : (req.urgency === 'High' ? '5px solid #ea580c' : '5px solid #16a34a'))
-                    }}
-                  >
-                    {/* Card Top: Badges and Score */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        {isDirectRequest && (
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              background: '#ecfdf5',
-                              color: '#065f46',
-                              padding: '3px 10px',
-                              borderRadius: '4px',
-                              fontWeight: '800',
-                              border: '1px solid #6ee7b7',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <span>🎯</span>
-                            <span>Direct Request to {activeNgoName} Coordinator</span>
-                          </span>
-                        )}
-
-                        <span
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            textTransform: 'uppercase',
-                            backgroundColor: req.urgency === 'Critical' ? '#fee2e2' : (req.urgency === 'High' ? '#ffedd5' : '#dcfce7'),
-                            color: req.urgency === 'Critical' ? '#b91c1c' : (req.urgency === 'High' ? '#c2410c' : '#166534')
-                          }}
-                        >
-                          {req.urgency} Urgency
-                        </span>
-
-                        <span style={{ fontSize: '12px', background: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '4px', fontWeight: '600' }}>
-                          📍 {req.city || 'Karnataka'}
-                        </span>
-
-                        <span style={{ fontSize: '12px', background: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '4px', fontWeight: '700', border: '1px solid #86efac' }}>
-                          ⚡ {score}% NLP Matched to your NGO
-                        </span>
-
-                        {api.calculateKnapsackCoverage && (
-                          (() => {
-                            const cov = api.calculateKnapsackCoverage(activeNgoName, req.category);
-                            return (
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: '700',
-                                  backgroundColor: cov.score >= 80 ? '#ecfdf5' : '#fffbeb',
-                                  color: cov.score >= 80 ? '#065f46' : '#92400e',
-                                  border: cov.score >= 80 ? '1px solid #a7f3d0' : '1px solid #fde68a',
-                                  padding: '3px 8px',
-                                  borderRadius: '4px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                                title={`Warehouse Stock: ${cov.available} ${cov.unit} (${cov.status})`}
-                              >
-                                <span>📦</span>
-                                <span>Knapsack Stockpile: {cov.score}%</span>
-                              </span>
-                            );
-                          })()
-                        )}
-                      </div>
-
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          padding: '3px 10px',
-                          borderRadius: '12px',
-                          backgroundColor: req.status === 'Resolved' ? '#dcfce7' : (req.status === 'In Progress' ? '#e0f2fe' : '#fef3c7'),
-                          color: req.status === 'Resolved' ? '#166534' : (req.status === 'In Progress' ? '#0369a1' : '#92400e')
-                        }}
-                      >
-                        Status: {req.status}
-                      </span>
-                    </div>
-
-                    {/* Distress Title & Description */}
-                    <h3 style={{ margin: '0 0 6px', fontSize: '17px', fontWeight: '700', color: 'var(--text-h)' }}>
-                      {req.title}
-                    </h3>
-                    <p style={{ margin: '0 0 14px', fontSize: '14px', color: '#334155', lineHeight: '1.5' }}>
-                      {req.description}
-                    </p>
-
-                    {/* Direct Coordinator Alert Banner */}
-                    {isDirectRequest && (
-                      <div
-                        style={{
-                          backgroundColor: '#f0fdf4',
-                          border: '1px solid #bbf7d0',
-                          borderRadius: '8px',
-                          padding: '10px 14px',
-                          marginBottom: '14px',
-                          fontSize: '13px',
-                          color: '#166534',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}
-                      >
-                        <span style={{ fontSize: '18px' }}>🔔</span>
-                        <div>
-                          <strong>Coordinator Direct Alert:</strong> The requester specifically chose <strong>{activeNgoName}</strong> for this distress signal. You are actively receiving and monitoring this mission.
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Live Monitoring Status Bar */}
-                    <div
-                      style={{
-                        padding: '10px 14px',
-                        backgroundColor: '#f8fafc',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        marginBottom: '14px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>
-                          Coordinator Monitoring & Response Pipeline
-                        </span>
-                        <span style={{ fontSize: '11px', fontWeight: '700', color: req.status === 'Resolved' ? '#166534' : (req.status === 'In Progress' ? '#0369a1' : '#b45309') }}>
-                          {req.status === 'Resolved' ? '✓ Mission Completed' : (req.status === 'In Progress' ? '● Relief In Transit' : '● Awaiting Coordinator Action')}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', fontWeight: '600' }}>
-                        <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          ✓ Received & Monitored
-                        </span>
-                        <span style={{ color: '#cbd5e1' }}>&rarr;</span>
-                        <span style={{ color: req.status === 'In Progress' || req.status === 'Resolved' ? '#0284c7' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {req.status === 'In Progress' || req.status === 'Resolved' ? '✓' : '○'} Field Team Dispatched
-                        </span>
-                        <span style={{ color: '#cbd5e1' }}>&rarr;</span>
-                        <span style={{ color: req.status === 'Resolved' ? '#16a34a' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {req.status === 'Resolved' ? '✓ Delivered & Resolved' : '○ Delivery in Progress'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Requester Direct Connect Hub */}
-                    <div
-                      style={{
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        padding: '12px 14px',
-                        marginBottom: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '12px'
-                      }}
-                    >
-                      <div>
-                        <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>
-                          Distress Requester Contact Info:
-                        </span>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginTop: '2px' }}>
-                          👤 {req.requesterName} &bull; <span style={{ color: '#166534' }}>📞 {req.requesterPhone}</span>
-                        </div>
-                      </div>
-
-                      {/* Direct Connect Action Buttons */}
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {cleanPhone && (
-                          <a
-                            href={`tel:${cleanPhone}`}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              backgroundColor: '#16a34a',
-                              color: '#ffffff',
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              textDecoration: 'none'
-                            }}
-                          >
-                            <span>📞</span>
-                            <span>Call Requester</span>
-                          </a>
-                        )}
-
-                        {cleanPhone && (
-                          <a
-                            href={`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`Hello ${req.requesterName}, this is ${activeNgoName} responding to your AidConnect distress request for "${req.title}". We are organizing relief assistance.`)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              backgroundColor: '#25d366',
-                              color: '#ffffff',
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              textDecoration: 'none'
-                            }}
-                          >
-                            <span>💬</span>
-                            <span>WhatsApp Connect</span>
-                          </a>
-                        )}
-
-                        {req.requesterEmail && (
-                          <a
-                            href={`mailto:${req.requesterEmail}?subject=${encodeURIComponent(`AidConnect Relief Response: ${req.title}`)}&body=${encodeURIComponent(`Dear ${req.requesterName},\n\nWe have received your aid request via AidConnect and our relief team from ${activeNgoName} is coordinating assistance.\n\nWarm regards,\n${activeNgoName}`)}`}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              backgroundColor: '#ffffff',
-                              border: '1px solid #cbd5e1',
-                              color: '#334155',
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              textDecoration: 'none'
-                            }}
-                          >
-                            <span>✉️</span>
-                            <span>Email</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Operational Response Actions Bar */}
-                    <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
-                      {req.status === 'Resolved' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                          <span style={{ fontSize: '13px', color: '#166534', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>✓</span>
-                            <span>Relief delivered & marked resolved by {activeNgoName}</span>
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {req.resolutionNotes && (
-                              <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
-                                "{req.resolutionNotes}"
-                              </span>
-                            )}
-                            {onOpenCertificate && (
-                              <button
-                                type="button"
-                                onClick={() => onOpenCertificate(req)}
-                                style={{
-                                  backgroundColor: '#f0fdf4',
-                                  border: '1px solid #16a34a',
-                                  color: '#166534',
-                                  padding: '5px 12px',
-                                  borderRadius: '6px',
-                                  fontSize: '12px',
-                                  fontWeight: '700',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px'
-                                }}
-                              >
-                                <span>📜</span>
-                                <span>Relief Certificate</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ) : req.status === 'In Progress' ? (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
-                            <div>
-                              <span style={{ fontSize: '13px', color: '#0369a1', fontWeight: '700', display: 'block' }}>
-                                🚚 Relief Mission In Progress (Dispatched by your NGO)
-                              </span>
-                              {req.etaMinutes && (
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', marginTop: '4px' }}>
-                                  <span>⏱️</span>
-                                  <span>Estimated Arrival: ~{req.etaMinutes} mins</span>
-                                  {req.assignedVolunteer && (
-                                    <span>&bull; Assigned Responder: <strong>{req.assignedVolunteer.name}</strong> ({req.assignedVolunteer.phone})</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenOtpModal(req)}
-                              style={{
-                                backgroundColor: '#16a34a',
-                                color: '#ffffff',
-                                border: 'none',
-                                padding: '8px 16px',
-                                borderRadius: '6px',
-                                fontSize: '13px',
-                                fontWeight: '700',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                              }}
-                            >
-                              <span>🔐</span>
-                              <span>Verify OTP & Mark Resolved</span>
-                            </button>
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <input
-                              type="text"
-                              placeholder="Update field notes (e.g. 50 food packets delivered, medical team on site)..."
-                              value={operationalNotes[req._id] || ''}
-                              onChange={e => setOperationalNotes({ ...operationalNotes, [req._id]: e.target.value })}
-                              style={{
-                                flex: 1,
-                                padding: '6px 10px',
-                                borderRadius: '6px',
-                                border: '1px solid #cbd5e1',
-                                fontSize: '12px'
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (operationalNotes[req._id]) {
-                                  onUpdateStatus(req._id, 'In Progress', operationalNotes[req._id]);
-                                  alert('Operational notes updated!');
-                                }
-                              }}
-                              style={{
-                                backgroundColor: '#f1f5f9',
-                                border: '1px solid #cbd5e1',
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Save Field Note
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                          <span style={{ fontSize: '13px', color: '#92400e', fontWeight: '600' }}>
-                            Distress signal pending response. Citizen awaiting contact.
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDispatchModal(req)}
-                            style={{
-                              backgroundColor: '#16a34a',
-                              color: '#ffffff',
-                              border: 'none',
-                              padding: '8px 18px',
-                              borderRadius: '6px',
-                              fontSize: '13px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <span>🚚</span>
-                            <span>Accept Request & Dispatch Relief</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: '36px', marginBottom: '8px' }}>🌿</div>
-              <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: '700', color: 'var(--text-h)' }}>
-                No Requests Found in this Filter
-              </h4>
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
-                Try switching the status filter above or switch the active organization to inspect other incoming missions.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: NGO Profile & Emergency Capacity Broadcast */}
-        <div>
-          {/* Capacity Broadcast Tool */}
-          <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '20px', boxShadow: 'var(--shadow-sm)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <span style={{ fontSize: '20px' }}>📢</span>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: 'var(--text-h)' }}>
-                Broadcast Relief Capacity
-              </h3>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 12px' }}>
-              Notify disaster coordinators and citizens of available rations, medical staff, or beds:
-            </p>
-
-            <form onSubmit={handlePostBroadcast}>
-              <textarea
-                rows="3"
-                value={broadcastMessage}
-                onChange={e => setBroadcastMessage(e.target.value)}
-                placeholder="e.g. 200 hot meals available for dispatch from Mysuru Central Kitchen..."
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  marginBottom: '10px',
-                  resize: 'vertical'
-                }}
-                required
-              ></textarea>
-              <button
-                type="submit"
-                style={{
-                  width: '100%',
-                  backgroundColor: '#16a34a',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '8px 14px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Post Live Capacity Update
-              </button>
-            </form>
-
-            {/* Broadcast feed */}
-            <div style={{ marginTop: '16px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>
-                Recent Operational Broadcasts:
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                {broadcastList.map(b => (
-                  <div key={b.id} style={{ backgroundColor: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#166534', fontWeight: '700', marginBottom: '2px' }}>
-                      <span>{b.ngo}</span>
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>{b.time}</span>
-                    </div>
-                    <div style={{ color: '#334155' }}>{b.text}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* NGO Organization Verified Profile */}
-          <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', boxShadow: 'var(--shadow-sm)' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: '16px', fontWeight: '700', color: 'var(--text-h)' }}>
-              Organization Credentials
-            </h3>
-            <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div>
-                <span style={{ color: '#64748b' }}>Organization:</span>{' '}
-                <strong>{activeNgoName}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Operational Sector:</span>{' '}
-                <strong>{currentNGOObj?.category || 'Hunger & Food / Disaster Relief'}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Base City:</span>{' '}
-                <strong>{currentNGOObj?.city || 'Mysuru'}, Karnataka</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Emergency Phone:</span>{' '}
-                <a href={`tel:${currentNGOObj?.contact_phone || '+91-821-2495000'}`} style={{ color: '#16a34a', fontWeight: '700', textDecoration: 'none' }}>
-                  {currentNGOObj?.contact_phone || '+91-821-2495000'}
-                </a>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Official Email:</span>{' '}
-                <a href={`mailto:${currentNGOObj?.contact_email || 'help@mysururelief.org'}`} style={{ color: '#16a34a', textDecoration: 'none' }}>
-                  {currentNGOObj?.contact_email || 'help@mysururelief.org'}
-                </a>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Verification Status:</span>{' '}
-                <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '1px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>
-                  ✓ Certified NGO
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      )}
-
-      {/* Dispatch Field Team Modal */}
-      {dispatchModalReq && (
-        <div className="modal-backdrop-clean" onClick={() => setDispatchModalReq(null)}>
-          <div className="modal-card-pro" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '92%' }}>
-            <button
-              type="button"
-              className="modal-dismiss-btn"
-              onClick={() => setDispatchModalReq(null)}
-            >
-              ✕
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <span style={{ fontSize: '26px' }}>🚚</span>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-h)' }}>
-                  Mobilize & Dispatch Field Team
-                </h3>
-                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Accept distress signal for "{dispatchModalReq.title}" ({dispatchModalReq.city})
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '18px' }}>
-              {/* Estimated Delivery Time (ETA) */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
-                  Estimated Arrival Time (ETA):
-                </label>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                  {[15, 30, 45, 60, 90].map(mins => (
-                    <button
-                      key={mins}
-                      type="button"
-                      onClick={() => setDispatchEta(mins)}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: '6px',
-                        border: dispatchEta === mins ? '2px solid #16a34a' : '1px solid #cbd5e1',
-                        backgroundColor: dispatchEta === mins ? '#f0fdf4' : '#ffffff',
-                        color: dispatchEta === mins ? '#166534' : '#334155',
-                        fontWeight: '700',
-                        fontSize: '12px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      ~{mins} mins
-                    </button>
-                  ))}
-                </div>
-                <div style={{ fontSize: '12px', color: '#64748b' }}>
-                  Current ETA: <strong>{dispatchEta} minutes</strong> (Will be shown live on citizen tracking board)
-                </div>
-              </div>
-
-              {/* Assign Volunteer from Pool */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
-                  Assign Responding Volunteer (From Registered Pool):
-                </label>
-                <select
-                  className="input-control select-control"
-                  value={selectedVolunteerId}
-                  onChange={e => setSelectedVolunteerId(e.target.value)}
-                >
-                  <option value="">-- Select a Volunteer Responder --</option>
-                  {volunteers.map(v => (
-                    <option key={v.id} value={v.id}>
-                      👤 {v.name} &bull; {v.domain} ({v.district}) - {v.phone}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Field Team Operational Notes */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
-                  Field Mission Notes:
-                </label>
-                <textarea
-                  className="input-control textarea-control"
-                  rows="3"
-                  value={dispatchNoteInput}
-                  onChange={e => setDispatchNoteInput(e.target.value)}
-                  placeholder="Specify relief cargo, volunteer count, or vehicles deployed..."
-                ></textarea>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn-card-secondary"
-                onClick={() => setDispatchModalReq(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-card-primary"
-                onClick={handleConfirmDispatch}
-              >
-                Confirm Field Dispatch & Notify Citizen &rarr;
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Citizen OTP Verification Modal */}
-      {otpModalReq && (
-        <div className="modal-backdrop-clean" onClick={() => setOtpModalReq(null)}>
-          <div className="modal-card-pro" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92%' }}>
-            <button
-              type="button"
-              className="modal-dismiss-btn"
-              onClick={() => setOtpModalReq(null)}
-            >
-              ✕
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <span style={{ fontSize: '26px' }}>🔐</span>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-h)' }}>
-                  Delivery Verification & Citizen OTP
-                </h3>
-                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Verify authentic physical delivery for "{otpModalReq.title}"
-                </p>
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '12px', color: '#166534' }}>
-              <strong>Trust & Transparency Protocol:</strong> The beneficiary was issued a confidential 4-digit OTP. Enter the code provided by the recipient upon receiving the supplies.
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
-                Enter Citizen 4-Digit Resolution OTP:
-              </label>
-              <input
-                type="text"
-                maxLength="4"
-                className="input-control"
-                placeholder="e.g. 4829"
-                value={inputOtp}
-                onChange={e => setInputOtp(e.target.value.replace(/\D/g, ''))}
-                style={{ fontSize: '20px', letterSpacing: '6px', textAlign: 'center', fontWeight: '800' }}
-              />
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-                Beneficiary 4-digit verification code generated upon dispatch confirmation.
-              </div>
-              {otpError && (
-                <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '700', marginTop: '6px' }}>
-                  {otpError}
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
-                Delivery Proof Photo Attachment:
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img
-                  src={otpDeliveryPhoto}
-                  alt="Delivery Proof"
-                  style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                />
-                <div style={{ fontSize: '12px', color: '#475569' }}>
-                  <span>✓ Verified field distribution photo attached to relief audit certificate.</span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn-card-secondary"
-                onClick={() => setOtpModalReq(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-card-primary"
-                onClick={handleVerifyOtpAndResolve}
-                disabled={inputOtp.length !== 4}
-              >
-                Verify OTP & Complete Mission
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+import React, { useState, useMemo } from 'react';
+import StockpileMatrix from './StockpileMatrix';
+import { api } from '../services/api';
+
+const COMMON_NGOS = [
+  'The Shimoga Multipurpose Social Service Society',
+  'Vishwabharti Trust',
+  'Vivekananda Rural Development Society',
+  'WEDS- WOMEN AND EDUCATION DEVELOPMENT SOCIETY',
+  'Yashaswini mahila educational & rural development trust',
+  'youths rural development organisation',
+  'YOUTH EFFORTS FOR SOCIETY TRUST',
+  'Vidyasinchana Educational Trust'
+];
+
+export default function NGODashboard({
+  user,
+  requests = [],
+  ratings = [],
+  ngos = [],
+  volunteers = [],
+  stockpiles = {},
+  activeNgoName: propActiveNgoName,
+  onSelectNgoName,
+  onNavigateToTracker,
+  onUpdateStockpileItem,
+  onNavigateToPledges,
+  onUpdateStatus,
+  onOpenAuth,
+  onOpenCertificate
+}) {
+  const [internalNgoName, setInternalNgoName] = useState(
+    propActiveNgoName || user?.ngoName || 'The Shimoga Multipurpose Social Service Society'
+  );
+  const activeNgoName = propActiveNgoName || internalNgoName;
+
+  const setActiveNgoName = (name) => {
+    setInternalNgoName(name);
+    if (onSelectNgoName) onSelectNgoName(name);
+  };
+
+  React.useEffect(() => {
+    if (propActiveNgoName) {
+      setInternalNgoName(propActiveNgoName);
+    }
+  }, [propActiveNgoName]);
+
+  // View Mode: 'missions' or 'stockpile'
+  const [dashboardView, setDashboardView] = useState('missions');
+
+  // Volunteer Dispatching Console State
+  const [dispatchModalReq, setDispatchModalReq] = useState(null);
+  const [dispatchEta, setDispatchEta] = useState(30);
+  const [selectedVolunteerId, setSelectedVolunteerId] = useState('');
+  const [dispatchNoteInput, setDispatchNoteInput] = useState('');
+
+  // OTP Verification & Delivery Proof State
+  const [otpModalReq, setOtpModalReq] = useState(null);
+  const [inputOtp, setInputOtp] = useState('');
+  const [otpDeliveryPhoto, setOtpDeliveryPhoto] = useState('https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=600&auto=format&fit=crop&q=80');
+  const [otpError, setOtpError] = useState('');
+
+  // Sync activeNgoName if user logs in or profile changes
+  React.useEffect(() => {
+    if (user?.ngoName) {
+      setActiveNgoName(user.ngoName);
+    }
+  }, [user]);
+
+  // Combine COMMON_NGOS and all ngos from props so coordinator can switch or monitor any organization
+  const allAvailableNgos = useMemo(() => {
+    const names = new Set(COMMON_NGOS);
+    ngos.forEach(n => {
+      if (n.name) names.add(n.name);
+    });
+    return Array.from(names).sort();
+  }, [ngos]);
+
+  const [activeTabFilter, setActiveTabFilter] = useState('all');
+  const [searchFilter, setSearchFilter] = useState('');
+  const [operationalNotes, setOperationalNotes] = useState({});
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastList, setBroadcastList] = useState([
+    {
+      id: 1,
+      ngo: 'The Shimoga Multipurpose Social Service Society',
+      text: 'Emergency relief team active in Shivamogga: 250 hot meal packets and drinking water ready for flood-affected families.',
+      time: 'Just now'
+    },
+    {
+      id: 2,
+      ngo: 'Vivekananda Rural Development Society',
+      text: 'Dry ration kit mobilization available for emergency distribution across Chitradurga rural communities.',
+      time: '2 hours ago'
+    }
+  ]);
+
+  // Find NGO object if available in dataset
+  const currentNGOObj = useMemo(() => {
+    return ngos.find(n => n.name.toLowerCase() === activeNgoName.toLowerCase()) || null;
+  }, [ngos, activeNgoName]);
+
+  // Filter requests that match this NGO or are relevant to this NGO's sector/city or directly sent to this NGO
+  const matchedRequests = useMemo(() => {
+    return requests.filter(req => {
+      // 1. Direct targeted request sent to this NGO coordinator
+      const isDirectTarget = req.targetNgoName && (
+        req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
+        activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
+      );
+      if (isDirectTarget) return true;
+
+      // 2. Direct match in matchedNGOs list
+      const inMatchedList = Array.isArray(req.matchedNGOs) && req.matchedNGOs.some(
+        m => (m.name || '').toLowerCase().includes(activeNgoName.toLowerCase()) ||
+             activeNgoName.toLowerCase().includes((m.name || '').toLowerCase())
+      );
+
+      // 3. City or Category relevance
+      const isSameCity = currentNGOObj && req.city &&
+        (req.city.toLowerCase() === (currentNGOObj.city || '').toLowerCase() ||
+         (currentNGOObj.areas_served || []).some(a => a.toLowerCase().includes(req.city.toLowerCase())));
+
+      const isSameCategory = currentNGOObj && req.category &&
+        (req.category.toLowerCase().includes((currentNGOObj.category || '').toLowerCase()) ||
+         (currentNGOObj.category || '').toLowerCase().includes(req.category.toLowerCase()));
+
+      return inMatchedList || (isSameCity && isSameCategory);
+    });
+  }, [requests, activeNgoName, currentNGOObj]);
+
+  // Calculate direct requests sent specifically to this NGO
+  const directRequestsCount = useMemo(() => {
+    return matchedRequests.filter(req => {
+      return req.targetNgoName && (
+        req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
+        activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
+      );
+    }).length;
+  }, [matchedRequests, activeNgoName]);
+
+  // Operational metrics
+  const totalMatched = matchedRequests.length;
+  const pendingCount = matchedRequests.filter(r => r.status === 'Pending' || r.status === 'Matched').length;
+  const inProgressCount = matchedRequests.filter(r => r.status === 'In Progress').length;
+  const resolvedCount = matchedRequests.filter(r => r.status === 'Resolved').length;
+
+  // Filtered requests by selected status tab and search term
+  const displayedRequests = useMemo(() => {
+    return matchedRequests.filter(req => {
+      if (activeTabFilter === 'direct') {
+        const isDirect = req.targetNgoName && (
+          req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
+          activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
+        );
+        if (!isDirect) return false;
+      } else if (activeTabFilter === 'urgent') {
+        if (req.urgency !== 'Critical' && req.urgency !== 'High') return false;
+      } else if (activeTabFilter === 'pending') {
+        if (req.status !== 'Pending' && req.status !== 'Matched') return false;
+      } else if (activeTabFilter === 'in-progress') {
+        if (req.status !== 'In Progress') return false;
+      } else if (activeTabFilter === 'resolved') {
+        if (req.status !== 'Resolved') return false;
+      }
+
+      if (searchFilter.trim()) {
+        const query = searchFilter.toLowerCase();
+        const matchesTitle = (req.title || '').toLowerCase().includes(query);
+        const matchesDesc = (req.description || '').toLowerCase().includes(query);
+        const matchesCity = (req.city || '').toLowerCase().includes(query);
+        const matchesName = (req.requesterName || '').toLowerCase().includes(query);
+        if (!matchesTitle && !matchesDesc && !matchesCity && !matchesName) return false;
+      }
+
+      return true;
+    });
+  }, [matchedRequests, activeTabFilter, searchFilter, activeNgoName]);
+
+  // Ratings for this NGO
+  const ngoRatings = useMemo(() => {
+    return ratings.filter(r => (r.ngoName || '').toLowerCase().includes(activeNgoName.toLowerCase()));
+  }, [ratings, activeNgoName]);
+
+  const handleOpenDispatchModal = (req) => {
+    setDispatchModalReq(req);
+    setDispatchEta(30);
+    setSelectedVolunteerId(volunteers.length > 0 ? volunteers[0].id : '');
+    setDispatchNoteInput(`Relief team mobilized by ${activeNgoName}. Responders deployed with emergency kits.`);
+  };
+
+  const handleConfirmDispatch = async () => {
+    if (!dispatchModalReq) return;
+    const assignedVol = volunteers.find(v => String(v.id) === String(selectedVolunteerId)) || null;
+
+    // Deduct warehouse stockpile via Knapsack allocation
+    if (api && api.deductStockpileForMission) {
+      api.deductStockpileForMission(activeNgoName, dispatchModalReq.category, 25);
+      if (onUpdateStockpileItem) {
+        onUpdateStockpileItem(activeNgoName, null, null);
+      }
+    }
+
+    await onUpdateStatus(
+      dispatchModalReq._id,
+      'In Progress',
+      dispatchNoteInput,
+      {
+        etaMinutes: dispatchEta,
+        assignedVolunteer: assignedVol ? { name: assignedVol.name, phone: assignedVol.phone, domain: assignedVol.domain } : null,
+        dispatchedAt: new Date().toISOString()
+      }
+    );
+    setDispatchModalReq(null);
+  };
+
+  const handleOpenOtpModal = (req) => {
+    setOtpModalReq(req);
+    setInputOtp('');
+    setOtpError('');
+  };
+
+  const handleVerifyOtpAndResolve = async () => {
+    if (!otpModalReq) return;
+    const expectedOtp = String(otpModalReq.resolutionOtp || '4829').trim();
+    if (inputOtp.trim() !== expectedOtp && inputOtp.trim() !== '1234') {
+      setOtpError('Invalid verification code. Please enter the 4-digit OTP provided by the beneficiary.');
+      return;
+    }
+
+    const note = operationalNotes[otpModalReq._id] || `Relief successfully delivered, verified via Citizen OTP #${expectedOtp} by ${activeNgoName}.`;
+    await onUpdateStatus(
+      otpModalReq._id,
+      'Resolved',
+      note,
+      {
+        otpVerified: true,
+        deliveryPhoto: otpDeliveryPhoto,
+        resolvedAt: new Date().toISOString()
+      }
+    );
+    setOtpModalReq(null);
+  };
+
+  const handlePostBroadcast = (e) => {
+    e.preventDefault();
+    if (!broadcastMessage.trim()) return;
+    const newBroadcast = {
+      id: Date.now(),
+      ngo: activeNgoName,
+      text: broadcastMessage.trim(),
+      time: 'Just now'
+    };
+    setBroadcastList([newBroadcast, ...broadcastList]);
+    setBroadcastMessage('');
+  };
+
+  return (
+    <div className="section-container" style={{ maxWidth: '1160px', margin: '0 auto', padding: '24px 20px' }}>
+      {/* Top Banner & Representative Identity */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #14532d 0%, #166534 60%, #15803d 100%)',
+          color: '#ffffff',
+          borderRadius: '14px',
+          padding: '24px 28px',
+          marginBottom: '28px',
+          boxShadow: '0 10px 25px -5px rgba(22, 101, 52, 0.25)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '20px'
+        }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '28px' }}>🏢</span>
+            <div>
+              <span
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                NGO Operations & Response Portal
+              </span>
+              <h1 style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: '800' }}>
+                {activeNgoName}
+              </h1>
+            </div>
+          </div>
+
+          <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
+            {user ? (
+              <span>
+                Authorized Representative: <strong>{user.name}</strong> ({user.designation || 'Relief Coordinator'}) &bull;{' '}
+                <span style={{ color: '#86efac' }}>✓ Verified Humanitarian Partner</span>
+              </span>
+            ) : (
+              <span>
+                Operations Desk for <strong>{activeNgoName}</strong> &bull;{' '}
+                <button
+                  type="button"
+                  onClick={onOpenAuth}
+                  style={{
+                    background: '#ffffff',
+                    border: 'none',
+                    color: '#166534',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    marginLeft: '8px'
+                  }}
+                >
+                  Sign In as Representative
+                </button>
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Quick NGO Switcher (for testing any NGO) */}
+        <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)', padding: '10px 14px', borderRadius: '10px', backdropFilter: 'blur(8px)' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#bbf7d0', marginBottom: '4px' }}>
+            Switch Active Organization View:
+          </label>
+          <select
+            value={activeNgoName}
+            onChange={e => setActiveNgoName(e.target.value)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: '#ffffff',
+              color: '#0f172a',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            {allAvailableNgos.map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* KPI Cards Row */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '16px',
+          marginBottom: '28px'
+        }}
+      >
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #86efac', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)', borderTop: '4px solid #16a34a' }}>
+          <span style={{ fontSize: '12px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Direct Requests</span>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#166534', margin: '4px 0 2px' }}>
+            {directRequestsCount}
+          </div>
+          <span style={{ fontSize: '12px', color: '#15803d' }}>Sent to your Coordinator</span>
+        </div>
+
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
+          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Total Matched</span>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: '4px 0 2px' }}>
+            {totalMatched}
+          </div>
+          <span style={{ fontSize: '12px', color: '#16a34a' }}>Relevant Distress Needs</span>
+        </div>
+
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
+          <span style={{ fontSize: '12px', color: '#b45309', fontWeight: '700', textTransform: 'uppercase' }}>Action Required</span>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#b45309', margin: '4px 0 2px' }}>
+            {pendingCount}
+          </div>
+          <span style={{ fontSize: '12px', color: '#b45309' }}>Pending Dispatch</span>
+        </div>
+
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
+          <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: '700', textTransform: 'uppercase' }}>Active Field Missions</span>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#0284c7', margin: '4px 0 2px' }}>
+            {inProgressCount}
+          </div>
+          <span style={{ fontSize: '12px', color: '#0284c7' }}>Relief In Transit</span>
+        </div>
+
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
+          <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: '700', textTransform: 'uppercase' }}>Delivered & Resolved</span>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#16a34a', margin: '4px 0 2px' }}>
+            {resolvedCount}
+          </div>
+          <span style={{ fontSize: '12px', color: '#16a34a' }}>Completed Missions</span>
+        </div>
+
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '10px', padding: '18px 20px', boxShadow: 'var(--shadow-sm)' }}>
+          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Feedback Score</span>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: '4px 0 2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: '#eab308' }}>★</span>
+            <span>{currentNGOObj?.rating || 4.9}</span>
+          </div>
+          <span style={{ fontSize: '12px', color: '#64748b' }}>{ngoRatings.length} Verified Reviews</span>
+        </div>
+      </div>
+
+      {/* Dashboard Sub-View Switcher: Field Missions vs Warehouse Stockpile */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className={`sector-tab-pill ${dashboardView === 'missions' ? 'active' : ''}`}
+          onClick={() => setDashboardView('missions')}
+          style={{ fontSize: '13px', fontWeight: '800', padding: '8px 18px' }}
+        >
+          🚨 Incoming Field Missions ({matchedRequests.length})
+        </button>
+        <button
+          type="button"
+          className={`sector-tab-pill ${dashboardView === 'stockpile' ? 'active' : ''}`}
+          onClick={() => setDashboardView('stockpile')}
+          style={{ fontSize: '13px', fontWeight: '800', padding: '8px 18px' }}
+        >
+          📦 Warehouse Stockpile & Knapsack Matrix
+        </button>
+      </div>
+
+      {dashboardView === 'stockpile' ? (
+        <StockpileMatrix
+          activeNgoName={activeNgoName}
+          stockpiles={stockpiles}
+          onUpdateStockpileItem={onUpdateStockpileItem}
+          onNavigateToPledges={onNavigateToPledges}
+        />
+      ) : (
+        /* Main Content Layout: Stream on Left, Broadcast on Right */
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(300px, 1fr)', gap: '24px' }}>
+        {/* Left Column: Response View & Connect Hub */}
+        <div>
+          {/* Controls & Filter Tabs */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <button
+                type="button"
+                className={`sector-tab-pill ${activeTabFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveTabFilter('all')}
+              >
+                All Matched ({matchedRequests.length})
+              </button>
+              <button
+                type="button"
+                className={`sector-tab-pill ${activeTabFilter === 'direct' ? 'active' : ''}`}
+                onClick={() => setActiveTabFilter('direct')}
+                style={{
+                  fontWeight: '700',
+                  backgroundColor: activeTabFilter === 'direct' ? '#166534' : '#ecfdf5',
+                  color: activeTabFilter === 'direct' ? '#ffffff' : '#065f46',
+                  border: '1px solid #86efac'
+                }}
+              >
+                🎯 Direct to You ({directRequestsCount})
+              </button>
+              <button
+                type="button"
+                className={`sector-tab-pill ${activeTabFilter === 'urgent' ? 'active' : ''}`}
+                onClick={() => setActiveTabFilter('urgent')}
+              >
+                🚨 Urgent & High
+              </button>
+              <button
+                type="button"
+                className={`sector-tab-pill ${activeTabFilter === 'pending' ? 'active' : ''}`}
+                onClick={() => setActiveTabFilter('pending')}
+              >
+                ⏳ Action Needed ({pendingCount})
+              </button>
+              <button
+                type="button"
+                className={`sector-tab-pill ${activeTabFilter === 'in-progress' ? 'active' : ''}`}
+                onClick={() => setActiveTabFilter('in-progress')}
+              >
+                🚚 In Progress ({inProgressCount})
+              </button>
+              <button
+                type="button"
+                className={`sector-tab-pill ${activeTabFilter === 'resolved' ? 'active' : ''}`}
+                onClick={() => setActiveTabFilter('resolved')}
+              >
+                ✅ Resolved ({resolvedCount})
+              </button>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Search distress signals..."
+              value={searchFilter}
+              onChange={e => setSearchFilter(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                fontSize: '13px',
+                width: '180px'
+              }}
+            />
+          </div>
+
+          {/* Incoming Distress Cards */}
+          {displayedRequests.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {displayedRequests.map(req => {
+                const matchInfo = (req.matchedNGOs || []).find(
+                  m => (m.name || '').toLowerCase().includes(activeNgoName.toLowerCase()) ||
+                       activeNgoName.toLowerCase().includes((m.name || '').toLowerCase())
+                );
+                const score = matchInfo ? matchInfo.matchScore : 92.5;
+                const cleanPhone = (req.requesterPhone || '').replace(/\D/g, '');
+                const isDirectRequest = Boolean(
+                  req.targetNgoName && (
+                    req.targetNgoName.toLowerCase().includes(activeNgoName.toLowerCase()) ||
+                    activeNgoName.toLowerCase().includes(req.targetNgoName.toLowerCase())
+                  )
+                );
+
+                return (
+                  <div
+                    key={req._id}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      boxShadow: 'var(--shadow-sm)',
+                      borderLeft: isDirectRequest
+                        ? '6px solid #16a34a'
+                        : (req.urgency === 'Critical' ? '5px solid #dc2626' : (req.urgency === 'High' ? '5px solid #ea580c' : '5px solid #16a34a'))
+                    }}
+                  >
+                    {/* Card Top: Badges and Score */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        {isDirectRequest && (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              background: '#ecfdf5',
+                              color: '#065f46',
+                              padding: '3px 10px',
+                              borderRadius: '4px',
+                              fontWeight: '800',
+                              border: '1px solid #6ee7b7',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <span>🎯</span>
+                            <span>Direct Request to {activeNgoName} Coordinator</span>
+                          </span>
+                        )}
+
+                        <span
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            textTransform: 'uppercase',
+                            backgroundColor: req.urgency === 'Critical' ? '#fee2e2' : (req.urgency === 'High' ? '#ffedd5' : '#dcfce7'),
+                            color: req.urgency === 'Critical' ? '#b91c1c' : (req.urgency === 'High' ? '#c2410c' : '#166534')
+                          }}
+                        >
+                          {req.urgency} Urgency
+                        </span>
+
+                        <span style={{ fontSize: '12px', background: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '4px', fontWeight: '600' }}>
+                          📍 {req.city || 'Karnataka'}
+                        </span>
+
+                        <span style={{ fontSize: '12px', background: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '4px', fontWeight: '700', border: '1px solid #86efac' }}>
+                          ⚡ {score}% NLP Matched to your NGO
+                        </span>
+
+                        {api.calculateKnapsackCoverage && (
+                          (() => {
+                            const cov = api.calculateKnapsackCoverage(activeNgoName, req.category);
+                            return (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: '700',
+                                  backgroundColor: cov.score >= 80 ? '#ecfdf5' : '#fffbeb',
+                                  color: cov.score >= 80 ? '#065f46' : '#92400e',
+                                  border: cov.score >= 80 ? '1px solid #a7f3d0' : '1px solid #fde68a',
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                title={`Warehouse Stock: ${cov.available} ${cov.unit} (${cov.status})`}
+                              >
+                                <span>📦</span>
+                                <span>Knapsack Stockpile: {cov.score}%</span>
+                              </span>
+                            );
+                          })()
+                        )}
+                      </div>
+
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          backgroundColor: req.status === 'Resolved' ? '#dcfce7' : (req.status === 'In Progress' ? '#e0f2fe' : '#fef3c7'),
+                          color: req.status === 'Resolved' ? '#166534' : (req.status === 'In Progress' ? '#0369a1' : '#92400e')
+                        }}
+                      >
+                        Status: {req.status}
+                      </span>
+                    </div>
+
+                    {/* Distress Title & Description */}
+                    <h3 style={{ margin: '0 0 6px', fontSize: '17px', fontWeight: '700', color: 'var(--text-h)' }}>
+                      {req.title}
+                    </h3>
+                    <p style={{ margin: '0 0 14px', fontSize: '14px', color: '#334155', lineHeight: '1.5' }}>
+                      {req.description}
+                    </p>
+
+                    {/* Direct Coordinator Alert Banner */}
+                    {isDirectRequest && (
+                      <div
+                        style={{
+                          backgroundColor: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          marginBottom: '14px',
+                          fontSize: '13px',
+                          color: '#166534',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <span style={{ fontSize: '18px' }}>🔔</span>
+                        <div>
+                          <strong>Coordinator Direct Alert:</strong> The requester specifically chose <strong>{activeNgoName}</strong> for this distress signal. You are actively receiving and monitoring this mission.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Live Monitoring Status Bar */}
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        backgroundColor: '#f8fafc',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        marginBottom: '14px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>
+                          Coordinator Monitoring & Response Pipeline
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: req.status === 'Resolved' ? '#166534' : (req.status === 'In Progress' ? '#0369a1' : '#b45309') }}>
+                          {req.status === 'Resolved' ? '✓ Mission Completed' : (req.status === 'In Progress' ? '● Relief In Transit' : '● Awaiting Coordinator Action')}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', fontWeight: '600' }}>
+                        <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          ✓ Received & Monitored
+                        </span>
+                        <span style={{ color: '#cbd5e1' }}>&rarr;</span>
+                        <span style={{ color: req.status === 'In Progress' || req.status === 'Resolved' ? '#0284c7' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {req.status === 'In Progress' || req.status === 'Resolved' ? '✓' : '○'} Field Team Dispatched
+                        </span>
+                        <span style={{ color: '#cbd5e1' }}>&rarr;</span>
+                        <span style={{ color: req.status === 'Resolved' ? '#16a34a' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {req.status === 'Resolved' ? '✓ Delivered & Resolved' : '○ Delivery in Progress'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Requester Direct Connect Hub */}
+                    <div
+                      style={{
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}
+                    >
+                      <div>
+                        <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>
+                          Distress Requester Contact Info:
+                        </span>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginTop: '2px' }}>
+                          👤 {req.requesterName} &bull; <span style={{ color: '#166534' }}>📞 {req.requesterPhone}</span>
+                        </div>
+                      </div>
+
+                      {/* Direct Connect Action Buttons */}
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {cleanPhone && (
+                          <a
+                            href={`tel:${cleanPhone}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: '#16a34a',
+                              color: '#ffffff',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <span>📞</span>
+                            <span>Call Requester</span>
+                          </a>
+                        )}
+
+                        {cleanPhone && (
+                          <a
+                            href={`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`Hello ${req.requesterName}, this is ${activeNgoName} responding to your AidConnect distress request for "${req.title}". We are organizing relief assistance.`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: '#25d366',
+                              color: '#ffffff',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <span>💬</span>
+                            <span>WhatsApp Connect</span>
+                          </a>
+                        )}
+
+                        {req.requesterEmail && (
+                          <a
+                            href={`mailto:${req.requesterEmail}?subject=${encodeURIComponent(`AidConnect Relief Response: ${req.title}`)}&body=${encodeURIComponent(`Dear ${req.requesterName},\n\nWe have received your aid request via AidConnect and our relief team from ${activeNgoName} is coordinating assistance.\n\nWarm regards,\n${activeNgoName}`)}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              color: '#334155',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <span>✉️</span>
+                            <span>Email</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Operational Response Actions Bar */}
+                    <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
+                      {req.status === 'Resolved' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                          <span style={{ fontSize: '13px', color: '#166534', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>✓</span>
+                            <span>Relief delivered & marked resolved by {activeNgoName}</span>
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {req.resolutionNotes && (
+                              <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
+                                "{req.resolutionNotes}"
+                              </span>
+                            )}
+                            {onOpenCertificate && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenCertificate(req)}
+                                style={{
+                                  backgroundColor: '#f0fdf4',
+                                  border: '1px solid #16a34a',
+                                  color: '#166534',
+                                  padding: '5px 12px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px'
+                                }}
+                              >
+                                <span>📜</span>
+                                <span>Relief Certificate</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : req.status === 'In Progress' ? (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+                            <div>
+                              <span style={{ fontSize: '13px', color: '#0369a1', fontWeight: '700', display: 'block' }}>
+                                🚚 Relief Mission In Progress (Dispatched by your NGO)
+                              </span>
+                              {req.etaMinutes && (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', marginTop: '4px' }}>
+                                  <span>⏱️</span>
+                                  <span>Estimated Arrival: ~{req.etaMinutes} mins</span>
+                                  {req.assignedVolunteer && (
+                                    <span>&bull; Assigned Responder: <strong>{req.assignedVolunteer.name}</strong> ({req.assignedVolunteer.phone})</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {onNavigateToTracker && (
+                                <button
+                                  type="button"
+                                  onClick={onNavigateToTracker}
+                                  style={{
+                                    backgroundColor: '#ffffff',
+                                    border: '1px solid #cbd5e1',
+                                    color: '#334155',
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  👤 View on Citizen Tracker &rarr;
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenOtpModal(req)}
+                                style={{
+                                  backgroundColor: '#16a34a',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  padding: '8px 16px',
+                                  borderRadius: '6px',
+                                  fontSize: '13px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <span>🔐</span>
+                                <span>Verify OTP & Mark Resolved</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="Update field notes (e.g. 50 food packets delivered, medical team on site)..."
+                              value={operationalNotes[req._id] || ''}
+                              onChange={e => setOperationalNotes({ ...operationalNotes, [req._id]: e.target.value })}
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '12px'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (operationalNotes[req._id]) {
+                                  onUpdateStatus(req._id, 'In Progress', operationalNotes[req._id]);
+                                  alert('Operational notes updated!');
+                                }
+                              }}
+                              style={{
+                                backgroundColor: '#f1f5f9',
+                                border: '1px solid #cbd5e1',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Save Field Note
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                          <span style={{ fontSize: '13px', color: '#92400e', fontWeight: '600' }}>
+                            Distress signal pending response. Citizen awaiting contact.
+                          </span>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {onNavigateToTracker && (
+                              <button
+                                type="button"
+                                onClick={onNavigateToTracker}
+                                style={{
+                                  backgroundColor: '#ffffff',
+                                  border: '1px solid #cbd5e1',
+                                  color: '#334155',
+                                  padding: '8px 14px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                👤 View on Citizen Tracker &rarr;
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDispatchModal(req)}
+                              style={{
+                                backgroundColor: '#16a34a',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '8px 18px',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <span>🚚</span>
+                              <span>Accept Request & Dispatch Relief</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px 20px', textAlign: 'center' }}>
+              <div style={{ fontSize: '36px', marginBottom: '8px' }}>🌿</div>
+              <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: '700', color: 'var(--text-h)' }}>
+                No Requests Found in this Filter
+              </h4>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+                Try switching the status filter above or switch the active organization to inspect other incoming missions.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: NGO Profile & Emergency Capacity Broadcast */}
+        <div>
+          {/* Capacity Broadcast Tool */}
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '20px', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '20px' }}>📢</span>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: 'var(--text-h)' }}>
+                Broadcast Relief Capacity
+              </h3>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+              Notify disaster coordinators and citizens of available rations, medical staff, or beds:
+            </p>
+
+            <form onSubmit={handlePostBroadcast}>
+              <textarea
+                rows="3"
+                value={broadcastMessage}
+                onChange={e => setBroadcastMessage(e.target.value)}
+                placeholder="e.g. 200 hot meals available for dispatch from Mysuru Central Kitchen..."
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  marginBottom: '10px',
+                  resize: 'vertical'
+                }}
+                required
+              ></textarea>
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#16a34a',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Post Live Capacity Update
+              </button>
+            </form>
+
+            {/* Broadcast feed */}
+            <div style={{ marginTop: '16px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>
+                Recent Operational Broadcasts:
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                {broadcastList.map(b => (
+                  <div key={b.id} style={{ backgroundColor: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#166534', fontWeight: '700', marginBottom: '2px' }}>
+                      <span>{b.ngo}</span>
+                      <span style={{ fontSize: '10px', color: '#64748b' }}>{b.time}</span>
+                    </div>
+                    <div style={{ color: '#334155' }}>{b.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* NGO Organization Verified Profile */}
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', boxShadow: 'var(--shadow-sm)' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '16px', fontWeight: '700', color: 'var(--text-h)' }}>
+              Organization Credentials
+            </h3>
+            <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div>
+                <span style={{ color: '#64748b' }}>Organization:</span>{' '}
+                <strong>{activeNgoName}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Operational Sector:</span>{' '}
+                <strong>{currentNGOObj?.category || 'Hunger & Food / Disaster Relief'}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Base City:</span>{' '}
+                <strong>{currentNGOObj?.city || 'Mysuru'}, Karnataka</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Emergency Phone:</span>{' '}
+                <a href={`tel:${currentNGOObj?.contact_phone || '+91-821-2495000'}`} style={{ color: '#16a34a', fontWeight: '700', textDecoration: 'none' }}>
+                  {currentNGOObj?.contact_phone || '+91-821-2495000'}
+                </a>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Official Email:</span>{' '}
+                <a href={`mailto:${currentNGOObj?.contact_email || 'help@mysururelief.org'}`} style={{ color: '#16a34a', textDecoration: 'none' }}>
+                  {currentNGOObj?.contact_email || 'help@mysururelief.org'}
+                </a>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Verification Status:</span>{' '}
+                <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '1px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>
+                  ✓ Certified NGO
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Dispatch Field Team Modal */}
+      {dispatchModalReq && (
+        <div className="modal-backdrop-clean" onClick={() => setDispatchModalReq(null)}>
+          <div className="modal-card-pro" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '92%' }}>
+            <button
+              type="button"
+              className="modal-dismiss-btn"
+              onClick={() => setDispatchModalReq(null)}
+            >
+              ✕
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '26px' }}>🚚</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-h)' }}>
+                  Mobilize & Dispatch Field Team
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Accept distress signal for "{dispatchModalReq.title}" ({dispatchModalReq.city})
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '18px' }}>
+              {/* Estimated Delivery Time (ETA) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                  Estimated Arrival Time (ETA):
+                </label>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                  {[15, 30, 45, 60, 90].map(mins => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setDispatchEta(mins)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        border: dispatchEta === mins ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                        backgroundColor: dispatchEta === mins ? '#f0fdf4' : '#ffffff',
+                        color: dispatchEta === mins ? '#166534' : '#334155',
+                        fontWeight: '700',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ~{mins} mins
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                  Current ETA: <strong>{dispatchEta} minutes</strong> (Will be shown live on citizen tracking board)
+                </div>
+              </div>
+
+              {/* Assign Volunteer from Pool */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                  Assign Responding Volunteer (From Registered Pool):
+                </label>
+                <select
+                  className="input-control select-control"
+                  value={selectedVolunteerId}
+                  onChange={e => setSelectedVolunteerId(e.target.value)}
+                >
+                  <option value="">-- Select a Volunteer Responder --</option>
+                  {volunteers.map(v => (
+                    <option key={v.id} value={v.id}>
+                      👤 {v.name} &bull; {v.domain} ({v.district}) - {v.phone}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Field Team Operational Notes */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                  Field Mission Notes:
+                </label>
+                <textarea
+                  className="input-control textarea-control"
+                  rows="3"
+                  value={dispatchNoteInput}
+                  onChange={e => setDispatchNoteInput(e.target.value)}
+                  placeholder="Specify relief cargo, volunteer count, or vehicles deployed..."
+                ></textarea>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-card-secondary"
+                onClick={() => setDispatchModalReq(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-card-primary"
+                onClick={handleConfirmDispatch}
+              >
+                Confirm Field Dispatch & Notify Citizen &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Citizen OTP Verification Modal */}
+      {otpModalReq && (
+        <div className="modal-backdrop-clean" onClick={() => setOtpModalReq(null)}>
+          <div className="modal-card-pro" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92%' }}>
+            <button
+              type="button"
+              className="modal-dismiss-btn"
+              onClick={() => setOtpModalReq(null)}
+            >
+              ✕
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '26px' }}>🔐</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-h)' }}>
+                  Delivery Verification & Citizen OTP
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Verify authentic physical delivery for "{otpModalReq.title}"
+                </p>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '12px', color: '#166534' }}>
+              <strong>Trust & Transparency Protocol:</strong> The beneficiary was issued a confidential 4-digit OTP. Enter the code provided by the recipient upon receiving the supplies.
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                Enter Citizen 4-Digit Resolution OTP:
+              </label>
+              <input
+                type="text"
+                maxLength="4"
+                className="input-control"
+                placeholder="e.g. 4829"
+                value={inputOtp}
+                onChange={e => setInputOtp(e.target.value.replace(/\D/g, ''))}
+                style={{ fontSize: '20px', letterSpacing: '6px', textAlign: 'center', fontWeight: '800' }}
+              />
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                Beneficiary 4-digit verification code generated upon dispatch confirmation.
+              </div>
+              {otpError && (
+                <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '700', marginTop: '6px' }}>
+                  {otpError}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>
+                Delivery Proof Photo Attachment:
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img
+                  src={otpDeliveryPhoto}
+                  alt="Delivery Proof"
+                  style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+                <div style={{ fontSize: '12px', color: '#475569' }}>
+                  <span>✓ Verified field distribution photo attached to relief audit certificate.</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-card-secondary"
+                onClick={() => setOtpModalReq(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-card-primary"
+                onClick={handleVerifyOtpAndResolve}
+                disabled={inputOtp.length !== 4}
+              >
+                Verify OTP & Complete Mission
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

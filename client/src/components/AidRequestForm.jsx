@@ -26,6 +26,7 @@ export default function AidRequestForm({
   user,
   onRequestSubmitted,
   onNavigateToTracker,
+  onNavigateToNGOConsole,
   targetNGO = null,
   onClearTargetNGO,
   ngos = [],
@@ -168,26 +169,47 @@ export default function AidRequestForm({
             Tracking ID: <code>{submittedRequest._id}</code> &bull; Status: <span className="status-badge-inline">{submittedRequest.status}</span>
           </p>
 
-          {submittedRequest.targetNgoName && (
-            <div
-              style={{
-                backgroundColor: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                borderRadius: '8px',
-                padding: '14px 18px',
-                margin: '16px 0 20px',
-                textAlign: 'left'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#065f46', fontWeight: '800', fontSize: '15px' }}>
-                <span>🎯</span>
-                <span>Direct Distress Request Dispatched to {submittedRequest.targetNgoName}</span>
-              </div>
-              <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#047857', lineHeight: '1.5' }}>
-                The coordinator for <strong>{submittedRequest.targetNgoName}</strong> has received this distress signal in their live Operations Desk and is actively monitoring it to establish direct contact and dispatch assistance.
-              </p>
+          {/* Two-Way Bridge Notification */}
+          <div
+            style={{
+              backgroundColor: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: '10px',
+              padding: '16px 20px',
+              margin: '16px 0 20px',
+              textAlign: 'left'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#065f46', fontWeight: '800', fontSize: '15px' }}>
+              <span>🎯</span>
+              <span>
+                Distress Signal Assigned to {submittedRequest.targetNgoName || submittedRequest.matchedNGOs?.[0]?.name}
+              </span>
             </div>
-          )}
+            <p style={{ margin: '6px 0 14px', fontSize: '13px', color: '#047857', lineHeight: '1.5' }}>
+              The representative for <strong>{submittedRequest.targetNgoName || submittedRequest.matchedNGOs?.[0]?.name}</strong> has received this distress signal in their live Response Desk and is actively monitoring it to establish direct contact and dispatch assistance.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-primary-green"
+                onClick={onNavigateToTracker}
+                style={{ fontSize: '13px', fontWeight: '700', padding: '8px 16px' }}
+              >
+                Track Request as Requester &rarr;
+              </button>
+              {onNavigateToNGOConsole && (
+                <button
+                  type="button"
+                  className="btn-outline-green"
+                  onClick={() => onNavigateToNGOConsole(submittedRequest.targetNgoName || submittedRequest.matchedNGOs?.[0]?.name)}
+                  style={{ fontSize: '13px', fontWeight: '700', padding: '8px 16px', backgroundColor: '#ffffff' }}
+                >
+                  🏢 Open {submittedRequest.targetNgoName || submittedRequest.matchedNGOs?.[0]?.name} Operations Desk &rarr;
+                </button>
+              )}
+            </div>
+          </div>
 
           <div className="matched-ngos-summary">
             <h4>Matched Organizations ({submittedRequest.matchedNGOs?.length || 0})</h4>
@@ -231,7 +253,7 @@ export default function AidRequestForm({
             </div>
           </div>
 
-          <div className="confirmation-actions">
+          <div className="confirmation-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '20px' }}>
             <button
               type="button"
               className="btn-primary-green"
@@ -239,6 +261,15 @@ export default function AidRequestForm({
             >
               View in Request Tracker
             </button>
+            {onNavigateToNGOConsole && (
+              <button
+                type="button"
+                className="btn-outline-green"
+                onClick={() => onNavigateToNGOConsole(submittedRequest.targetNgoName || submittedRequest.matchedNGOs?.[0]?.name)}
+              >
+                Open NGO Response Hub
+              </button>
+            )}
             <button
               type="button"
               className="btn-outline-green"

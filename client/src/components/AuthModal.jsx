@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
-const VERIFIED_NGOS_LIST = [
+const DEFAULT_NGOS = [
   'The Shimoga Multipurpose Social Service Society',
   'Vishwabharti Trust',
   'Vivekananda Rural Development Society',
@@ -8,11 +8,10 @@ const VERIFIED_NGOS_LIST = [
   'Yashaswini mahila educational & rural development trust',
   'youths rural development organisation',
   'YOUTH EFFORTS FOR SOCIETY TRUST',
-  'Vidyasinchana Educational Trust',
-  'Other'
+  'Vidyasinchana Educational Trust'
 ];
 
-export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
+export default function AuthModal({ isOpen, onClose, onLoginSuccess, ngos = [] }) {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +21,14 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [customNGO, setCustomNGO] = useState('');
   const [designation, setDesignation] = useState('');
   const [orgPhone, setOrgPhone] = useState('');
+
+  const allNgosList = useMemo(() => {
+    const set = new Set(DEFAULT_NGOS);
+    ngos.forEach(n => {
+      if (n.name) set.add(n.name);
+    });
+    return Array.from(set).sort();
+  }, [ngos]);
 
   if (!isOpen) return null;
 
@@ -52,12 +59,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
     const user = {
       id: 'usr_' + Date.now(),
-      name: name.trim() || email.split('@')[0],
+      name: name.trim() || (role === 'ngo' ? `${effectiveNGO} Coordinator` : email.split('@')[0]),
       email: email.trim(),
-      role: isRegister ? role : (email.includes('ngo') ? 'ngo' : 'citizen'),
+      role: role,
       ngoName: role === 'ngo' ? effectiveNGO : undefined,
-      designation: role === 'ngo' ? (designation.trim() || 'Representative') : undefined,
-      phone: orgPhone ? orgPhone.trim() : ''
+      designation: role === 'ngo' ? (designation.trim() || 'Operations Coordinator') : undefined,
+      phone: orgPhone ? orgPhone.trim() : '9876543210'
     };
 
     onLoginSuccess(user);
@@ -66,23 +73,75 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
   return (
     <div className="modal-backdrop-clean" onClick={onClose}>
-      <div className="auth-dialog-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+      <div className="auth-dialog-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px' }}>
         <button type="button" className="modal-dismiss-btn" onClick={onClose}>✕</button>
 
         <div className="auth-card-header">
           <div className="auth-leaf-icon">🌿</div>
           <h3>{isRegister ? 'Create an Account' : 'Sign in to AidConnect'}</h3>
-          <p>Access your submitted requests and organization dashboards</p>
+          <p>Connect as a Citizen Requester or Verified NGO Representative</p>
+        </div>
+
+        {/* Identity Selector */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <button
+            type="button"
+            className={`sector-tab-pill ${role === 'citizen' ? 'active' : ''}`}
+            onClick={() => setRole('citizen')}
+            style={{ flex: 1, padding: '8px', fontSize: '13px', fontWeight: '700' }}
+          >
+            👤 Citizen Requester
+          </button>
+          <button
+            type="button"
+            className={`sector-tab-pill ${role === 'ngo' ? 'active' : ''}`}
+            onClick={() => setRole('ngo')}
+            style={{ flex: 1, padding: '8px', fontSize: '13px', fontWeight: '700' }}
+          >
+            🏢 NGO Representative
+          </button>
         </div>
 
         <form className="auth-form-content" onSubmit={handleSubmit}>
+          {role === 'ngo' && (
+            <div style={{ backgroundColor: '#f0fdf4', padding: '12px 14px', borderRadius: '8px', border: '1px solid #86efac', marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '6px' }}>
+                Select Your Verified NGO Organization:
+              </label>
+              <select
+                className="input-control select-control"
+                value={selectedNGO}
+                onChange={e => setSelectedNGO(e.target.value)}
+                required
+              >
+                {allNgosList.map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+                <option value="Other">Other Verified NGO...</option>
+              </select>
+
+              {selectedNGO === 'Other' && (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    className="input-control"
+                    placeholder="Enter official NGO name..."
+                    value={customNGO}
+                    onChange={e => setCustomNGO(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {isRegister && (
             <div className="form-field">
               <label>Full Name</label>
               <input
                 type="text"
                 className="input-control"
-                placeholder="Enter your full name"
+                placeholder={role === 'ngo' ? 'e.g. Rajesh Kumar (Operations Lead)' : 'Your full name'}
                 value={name}
                 onChange={e => setName(e.target.value)}
                 required
@@ -95,7 +154,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             <input
               type="email"
               className="input-control"
-              placeholder="name@organization.org"
+              placeholder={role === 'ngo' ? 'coordinator@organization.org' : 'name@example.com'}
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
@@ -115,92 +174,37 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             />
           </div>
 
-          {isRegister && (
+          {isRegister && role === 'ngo' && (
             <>
               <div className="form-field">
-                <label>Account Type</label>
-                <select
-                  className="input-control select-control"
-                  value={role}
-                  onChange={e => setRole(e.target.value)}
+                <label>Designation / Role in NGO</label>
+                <input
+                  type="text"
+                  className="input-control"
+                  placeholder="e.g. District Disaster Response Lead"
+                  value={designation}
+                  onChange={e => setDesignation(e.target.value)}
                   required
-                >
-                  <option value="citizen">Citizen / Aid Requester</option>
-                  <option value="ngo">NGO Representative</option>
-                  <option value="coordinator">Emergency Coordinator</option>
-                </select>
+                />
               </div>
 
-              {role === 'ngo' && (
-                <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0', marginTop: '6px', marginBottom: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '8px' }}>
-                    🏢 NGO Organization Details:
-                  </div>
-
-                  <div className="form-field" style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '12px', color: '#166534' }}>Select Verified NGO Organization</label>
-                    <select
-                      className="input-control select-control"
-                      value={selectedNGO}
-                      onChange={e => setSelectedNGO(e.target.value)}
-                      required
-                    >
-                      {VERIFIED_NGOS_LIST.map(ngo => (
-                        <option key={ngo} value={ngo}>{ngo}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedNGO === 'Other' && (
-                    <div className="form-field" style={{ marginBottom: '8px' }}>
-                      <label style={{ fontSize: '12px', color: '#166534' }}>Enter NGO Organization Name</label>
-                      <input
-                        type="text"
-                        className="input-control"
-                        placeholder="e.g. Karuna Rural Trust"
-                        value={customNGO}
-                        onChange={e => setCustomNGO(e.target.value)}
-                        required
-                      />
-                    </div>
-                  )}
-
-                  <div className="form-field" style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '12px', color: '#166534' }}>Your Official Role / Designation</label>
-                    <input
-                      type="text"
-                      className="input-control"
-                      placeholder="e.g. Relief Coordinator, Field Lead, Director"
-                      value={designation}
-                      onChange={e => setDesignation(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-field" style={{ marginBottom: '0' }}>
-                    <label style={{ fontSize: '12px', color: '#166534' }}>Official Contact Number (10 digits)</label>
-                    <input
-                      type="tel"
-                      maxLength={10}
-                      className="input-control"
-                      placeholder="10-digit mobile number"
-                      value={orgPhone}
-                      onChange={e => setOrgPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      required
-                    />
-                    {orgPhone && orgPhone.length > 0 && orgPhone.length < 10 && (
-                      <span style={{ fontSize: '11px', color: '#dc2626', marginTop: '3px', display: 'block' }}>
-                        {10 - orgPhone.length} more digit{10 - orgPhone.length === 1 ? '' : 's'} required
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
+              <div className="form-field">
+                <label>Official Contact Mobile (10 digits)</label>
+                <input
+                  type="tel"
+                  maxLength={10}
+                  className="input-control"
+                  placeholder="10-digit mobile number"
+                  value={orgPhone}
+                  onChange={e => setOrgPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  required
+                />
+              </div>
             </>
           )}
 
           <button type="submit" className="btn-primary-green auth-action-btn">
-            {isRegister ? 'Register Account' : 'Sign In'}
+            {isRegister ? (role === 'ngo' ? 'Register NGO Representative' : 'Register Citizen Account') : (role === 'ngo' ? `Sign In as ${selectedNGO.slice(0, 22)}... Coordinator` : 'Sign In')}
           </button>
         </form>
 
@@ -214,7 +218,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             </p>
           ) : (
             <p>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button type="button" className="auth-link-button" onClick={() => setIsRegister(true)}>
                 Register
               </button>

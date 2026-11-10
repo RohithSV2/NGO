@@ -17,6 +17,7 @@ export default function Navbar({
   const navItems = isNGO
     ? [
         { id: 'ngo-portal', label: 'NGO Response Hub' },
+        { id: 'tracker', label: 'Citizen Tracker' },
         { id: 'map', label: 'Live Relief Map' },
         { id: 'directory', label: 'NGO Directory' },
         { id: 'analytics', label: 'District Analytics' },
@@ -28,6 +29,7 @@ export default function Navbar({
         { id: 'overview', label: 'Overview' },
         { id: 'request-aid', label: 'Post Aid Request' },
         { id: 'tracker', label: user ? 'Track My Requests' : 'Track Requests' },
+        { id: 'ngo-portal', label: 'NGO Response Hub' },
         { id: 'map', label: 'Live Relief Map' },
         { id: 'directory', label: 'NGO Directory' },
         { id: 'analytics', label: 'District Analytics' },

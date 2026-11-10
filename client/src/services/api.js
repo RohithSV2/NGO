@@ -481,13 +481,16 @@ export const api = {
     const jitterLng = Number((cityCoords.lng + (Math.random() - 0.5) * 0.04).toFixed(4));
     const resolutionOtp = String(Math.floor(1000 + Math.random() * 9000));
 
+    const primaryNgoName = directTargetName || (formattedMatches.length > 0 ? formattedMatches[0].name : 'The Shimoga Multipurpose Social Service Society');
+
     const newRequest = {
       _id: 'req_' + Date.now(),
       ...requestData,
       lat: requestData.lat || jitterLat,
       lng: requestData.lng || jitterLng,
       resolutionOtp: requestData.resolutionOtp || resolutionOtp,
-      targetNgoName: directTargetName || null,
+      targetNgoName: primaryNgoName,
+      assignedNgoName: primaryNgoName,
       isDirectRequest: Boolean(directTargetName || requestData.isDirectRequest),
       status: formattedMatches.length > 0 ? 'Matched' : 'Pending',
       matchedNGOs: formattedMatches,
@@ -501,8 +504,8 @@ export const api = {
     // Register live notification
     try {
       this.addNotification({
-        title: `🚨 New ${requestData.urgency || 'High'} Need: ${requestData.city || 'Karnataka'}`,
-        message: `${requestData.title || 'Aid request'} submitted by ${requestData.requesterName || 'Citizen'}.`,
+        title: `🚨 Incoming Distress Signal for ${primaryNgoName}`,
+        message: `${requestData.requesterName || 'Citizen'} in ${requestData.city || 'Karnataka'} submitted: "${requestData.title}". Assigned to ${primaryNgoName}.`,
         urgency: requestData.urgency || 'High',
         district: requestData.city || 'Karnataka'
       });
