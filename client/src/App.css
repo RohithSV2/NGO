@@ -1493,42 +1493,6 @@
 }
 
 /* -------------------------------------------------------------
-   Examiner Live Viva Demo Button & Modal Styles
-   ------------------------------------------------------------- */
-.examiner-demo-floating-btn {
-  position: fixed;
-  bottom: 12px;
-  right: 16px;
-  z-index: 9990;
-  background-color: #0f172a;
-  color: #38bdf8;
-  border: 1px solid #334155;
-  border-radius: 20px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  opacity: 0.88;
-  transition: all 0.2s ease;
-}
-
-.examiner-demo-floating-btn:hover {
-  opacity: 1;
-  transform: translateY(-1px);
-  background-color: #1e293b;
-  border-color: #38bdf8;
-  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.25);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* -------------------------------------------------------------
    NDRF / KSDMA Incident Dossier Print Styles (@media print)
    ------------------------------------------------------------- */
 @media print {
