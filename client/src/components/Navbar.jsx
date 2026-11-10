@@ -18,7 +18,6 @@ export default function Navbar({
     ? [
         { id: 'ngo-portal', label: 'NGO Hub' },
         { id: 'tracker', label: 'Tracker' },
-        { id: 'map', label: 'Relief Map' },
         { id: 'directory', label: 'Directory' },
         { id: 'analytics', label: 'Analytics' },
         { id: 'pledges', label: 'Pledges' },
@@ -29,7 +28,6 @@ export default function Navbar({
         { id: 'overview', label: 'Overview' },
         { id: 'request-aid', label: 'Post Aid' },
         { id: 'tracker', label: 'Track Aid' },
-        { id: 'map', label: 'Relief Map' },
         { id: 'directory', label: 'Directory' },
         { id: 'analytics', label: 'Analytics' },
         { id: 'pledges', label: 'Pledges' },

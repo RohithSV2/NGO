@@ -8,7 +8,6 @@ import NGODashboard from './components/NGODashboard';
 import RatingsSection from './components/RatingsSection';
 import DistrictAnalytics from './components/DistrictAnalytics';
 import VolunteerHub from './components/VolunteerHub';
-import LiveReliefMap from './components/LiveReliefMap';
 import IncidentReportModal from './components/IncidentReportModal';
 import XAIExplanationModal from './components/XAIExplanationModal';
 import ReliefCertificateModal from './components/ReliefCertificateModal';
@@ -423,16 +422,6 @@ function App() {
             ngos={ngos}
             requests={requests}
             onOpenXAI={(match) => setActiveXAIModal(match)}
-          />
-        )}
-
-        {activeTab === 'map' && (
-          <LiveReliefMap
-            requests={requests}
-            ngos={ngos}
-            onNavigateToPostRequest={() => setActiveTab('request-aid')}
-            onDirectRequest={handleDirectRequest}
-            onNavigateToTracker={() => setActiveTab('tracker')}
           />
         )}
 
